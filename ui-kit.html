@@ -1,0 +1,766 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ReelSpark</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#09090B;
+    --surface:#141418;
+    --surface-raised:#1c1c22;
+    --border:#29292F;
+    --text:#FFFFFF;
+    --text-muted:#A6A6B0;
+    --soft-surface:#F4F4F7;
+    --orange:#FF651C;
+    --coral:#FE4940;
+    --pink:#FD3667;
+    --magenta:#DB3293;
+    --purple:#7D27E3;
+    --deep-purple:#5B18C9;
+    --gradient-brand: linear-gradient(90deg, var(--orange) 0%, var(--coral) 25%, var(--pink) 48%, var(--magenta) 70%, var(--purple) 100%);
+    --r-sm:8px; --r-md:10px; --r-lg:12px; --r-xl:20px; --r-pill:999px;
+    --font-display:'Unbounded', 'Segoe UI', sans-serif;
+    --font-body:'Inter', 'Segoe UI', sans-serif;
+    --font-mono:'JetBrains Mono', 'Courier New', monospace;
+  }
+
+  *{box-sizing:border-box;}
+  html,body{ margin:0; padding:0; }
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--font-body);
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  ::selection{ background:var(--pink); color:#fff; }
+
+  a{color:inherit;}
+  button{font-family:inherit;}
+  img{max-width:100%;}
+
+  /* ---------- ambient backdrop ---------- */
+  .ambient{
+    position:fixed; inset:0; z-index:0; pointer-events:none; overflow:hidden;
+  }
+  .blob{
+    position:absolute; border-radius:50%; filter:blur(90px); opacity:.28;
+    animation: drift 26s ease-in-out infinite;
+  }
+  .blob--a{ width:520px; height:520px; top:-160px; left:-120px; background:radial-gradient(circle, var(--orange), transparent 70%); }
+  .blob--b{ width:600px; height:600px; top:20%; right:-220px; background:radial-gradient(circle, var(--purple), transparent 70%); animation-delay:-8s; }
+  .blob--c{ width:460px; height:460px; bottom:-180px; left:18%; background:radial-gradient(circle, var(--pink), transparent 70%); animation-delay:-16s; }
+  @keyframes drift{
+    0%,100%{ transform:translate(0,0) scale(1); }
+    50%{ transform:translate(30px,-40px) scale(1.08); }
+  }
+  @media (prefers-reduced-motion: reduce){ .blob{ animation:none; } }
+
+  .wrap{ position:relative; z-index:1; max-width:1160px; margin:0 auto; padding:0 28px; }
+
+  /* ---------- top bar ---------- */
+  .topbar{ display:flex; align-items:center; justify-content:space-between; padding:26px 0 0; }
+  .brand{ display:flex; align-items:center; gap:10px; }
+  .brand-name{ font-family:var(--font-display); font-weight:700; font-size:17px; letter-spacing:.2px; }
+  .brand-name .spark{ background:var(--gradient-brand); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .topbar-tag{ font-size:12px; color:var(--text-muted); font-family:var(--font-mono); letter-spacing:.04em; }
+
+  /* ---------- hero ---------- */
+  .hero{ padding:64px 0 32px; display:grid; grid-template-columns:1.1fr .9fr; gap:40px; align-items:end; }
+  .hero-mark{ width:76px; height:76px; margin-bottom:26px; }
+  h1.hero-title{
+    font-family:var(--font-display); font-weight:700; font-size:clamp(34px,5vw,56px);
+    line-height:1.04; letter-spacing:-.01em; margin:0 0 18px; text-wrap:balance;
+  }
+  h1.hero-title .grad{ background:var(--gradient-brand); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .hero-sub{ font-size:16px; line-height:1.6; color:var(--text-muted); max-width:46ch; margin:0; }
+  .hero-side{ font-family:var(--font-mono); font-size:12.5px; color:var(--text-muted); line-height:1.9; border-left:1px solid var(--border); padding-left:18px; }
+  .hero-side b{ color:var(--text); font-weight:600; }
+
+  /* ---------- section headers ---------- */
+  .section-head{ margin:0 0 22px; padding-top:64px; }
+  .eyebrow{ font-family:var(--font-mono); font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--pink); margin:0 0 8px; }
+  .section-head h2{ font-family:var(--font-display); font-weight:600; font-size:24px; margin:0 0 8px; }
+  .section-head p{ color:var(--text-muted); font-size:14.5px; margin:0; max-width:60ch; }
+  .rule{ height:2px; width:64px; background:var(--gradient-brand); border-radius:2px; margin-top:16px; }
+
+  /* ---------- showcase controls ---------- */
+  .showcase{ padding-top:36px; display:grid; grid-template-columns:260px 1fr; gap:36px; align-items:start; }
+  .controls{ position:sticky; top:24px; display:flex; flex-direction:column; gap:22px; }
+  .control-group label.group-label{ display:block; font-family:var(--font-mono); font-size:11px; text-transform:uppercase; letter-spacing:.1em; color:var(--text-muted); margin-bottom:10px; }
+  .screen-tabs{ display:flex; flex-direction:column; gap:4px; }
+  .screen-tab{
+    all:unset; cursor:pointer; padding:11px 14px; border-radius:var(--r-md); font-size:14px; font-weight:500;
+    color:var(--text-muted); border:1px solid transparent; transition:all .18s ease;
+  }
+  .screen-tab:hover{ background:var(--surface); color:var(--text); }
+  .screen-tab.is-active{ background:var(--surface); border-color:var(--border); color:var(--text); }
+  .screen-tab.is-active .dot{ background:var(--gradient-brand); }
+  .screen-tab{ display:flex; align-items:center; gap:10px; }
+  .dot{ width:6px; height:6px; border-radius:50%; background:var(--border); flex:none; }
+  .screen-tab:focus-visible, .device-btn:focus-visible, .btn:focus-visible, .play-btn:focus-visible, .fab:focus-visible{
+    outline:2px solid var(--pink); outline-offset:2px;
+  }
+
+  .device-toggle{ display:flex; gap:6px; background:var(--surface); border:1px solid var(--border); border-radius:var(--r-pill); padding:4px; }
+  .device-btn{ all:unset; cursor:pointer; flex:1; text-align:center; padding:7px 4px; border-radius:var(--r-pill); font-size:11.5px; font-family:var(--font-mono); color:var(--text-muted); transition:all .18s ease; }
+  .device-btn.is-active{ background:var(--gradient-brand); color:#fff; }
+
+  .note-card{ background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); padding:16px; font-size:12.5px; color:var(--text-muted); line-height:1.65; }
+  .note-card b{ color:var(--text); }
+  .note-card .flag{ display:inline-flex; align-items:center; gap:6px; color:var(--purple); font-weight:600; margin-bottom:6px; font-family:var(--font-mono); font-size:11px; text-transform:uppercase; letter-spacing:.06em; }
+
+  /* ---------- phone stage ---------- */
+  .stage{ display:flex; justify-content:center; padding:20px 0 40px; min-height:760px; }
+  .phone{
+    position:relative; width:375px; height:812px; background:#000; border-radius:52px;
+    padding:14px; box-shadow: 0 30px 80px -20px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.04);
+    transition: width .35s cubic-bezier(.2,.8,.2,1), height .35s cubic-bezier(.2,.8,.2,1);
+    flex:none;
+  }
+  .phone[data-size="compact"]{ width:320px; height:660px; border-radius:40px; }
+  .phone[data-size="large"]{ width:430px; height:900px; border-radius:56px; }
+  .phone-screen{
+    position:relative; width:100%; height:100%; background:var(--bg); border-radius:38px; overflow:hidden;
+    display:flex; flex-direction:column;
+  }
+  .phone[data-size="compact"] .phone-screen{ border-radius:28px; }
+  .phone[data-size="large"] .phone-screen{ border-radius:44px; }
+
+  .notch{ position:absolute; top:14px; left:50%; transform:translateX(-50%); width:150px; height:26px; background:#000; border-radius:16px; z-index:20; }
+  .phone[data-size="compact"] .notch{ display:none; }
+  .island{ position:absolute; top:22px; left:50%; transform:translateX(-50%); width:96px; height:28px; background:#000; border-radius:20px; z-index:20; }
+  .home-btn{ position:absolute; bottom:10px; left:50%; transform:translateX(-50%); width:36px; height:36px; border:2px solid #2a2a2a; border-radius:50%; z-index:20; }
+  .home-indicator{ position:absolute; bottom:8px; left:50%; transform:translateX(-50%); width:120px; height:4px; background:rgba(255,255,255,.55); border-radius:3px; z-index:20; }
+
+  .statusbar{ display:flex; align-items:center; justify-content:space-between; padding:14px 26px 4px; font-family:var(--font-mono); font-size:13px; font-weight:600; color:var(--text); flex:none; }
+  .phone[data-size="compact"] .statusbar{ padding-top:8px; }
+  .statusbar .icons{ display:flex; align-items:center; gap:5px; }
+  .sb-signal{ display:flex; align-items:flex-end; gap:1.5px; height:9px; }
+  .sb-signal i{ width:2.5px; background:#fff; border-radius:1px; display:block; }
+  .sb-battery{ width:20px; height:10px; border:1.2px solid #fff; border-radius:2.5px; position:relative; }
+  .sb-battery::after{ content:""; position:absolute; inset:1.5px; width:70%; background:#fff; border-radius:1px; }
+
+  .screen-body{ flex:1; min-height:0; position:relative; }
+  .screen-view{ position:absolute; inset:0; display:flex; flex-direction:column; opacity:0; pointer-events:none; transform:translateY(6px); transition:opacity .28s ease, transform .28s ease; }
+  .screen-view.is-active{ opacity:1; pointer-events:auto; transform:translateY(0); }
+
+  /* ---------- tab bar (in-phone) ---------- */
+  .tabbar{ flex:none; display:flex; border-top:1px solid var(--border); background:var(--surface); padding:10px 8px 4px; }
+  .tabbar-item{ flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; color:var(--text-muted); }
+  .tabbar-item.is-active{ color:var(--text); }
+  .tabbar-icon{ width:20px; height:20px; }
+  .tabbar-item.is-active .tabbar-icon{ color:var(--pink); }
+  .tabbar-label{ font-size:10px; font-weight:500; }
+
+  /* ================= WELCOME SCREEN ================= */
+  .welcome{ justify-content:flex-end; padding:0 26px 40px; gap:22px; position:relative; }
+  .welcome::before{
+    content:""; position:absolute; top:8%; left:50%; transform:translateX(-50%); width:260px; height:260px;
+    background:radial-gradient(circle, rgba(253,54,103,.35), transparent 70%); filter:blur(30px); pointer-events:none;
+  }
+  .welcome-top{ margin-top:auto; margin-bottom:auto; display:flex; flex-direction:column; align-items:flex-start; gap:14px; position:relative; }
+  .welcome-mark{ width:56px; height:56px; }
+  .welcome-word{ font-family:var(--font-display); font-weight:700; font-size:22px; }
+  .welcome-word .sp{ background:var(--gradient-brand); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .welcome-headline{ font-family:var(--font-display); font-weight:600; font-size:25px; line-height:1.25; margin:6px 0 0; text-wrap:balance; }
+  .welcome-copy{ color:var(--text-muted); font-size:13.5px; line-height:1.65; max-width:30ch; margin:0; }
+  .welcome-actions{ display:flex; flex-direction:column; gap:10px; position:relative; }
+  .welcome-legal{ text-align:center; font-size:10.5px; color:var(--text-muted); margin-top:4px; }
+
+  .btn{ all:unset; box-sizing:border-box; cursor:pointer; text-align:center; font-size:14.5px; font-weight:600; padding:14px 20px; border-radius:var(--r-lg); transition:transform .15s ease, opacity .15s ease; }
+  .btn:active{ transform:scale(.98); }
+  .btn-primary{ background:var(--gradient-brand); color:#fff; }
+  .btn-primary[disabled]{ opacity:.4; cursor:not-allowed; }
+  .btn-primary:not([disabled]):hover{ filter:brightness(1.06); }
+  .btn-secondary{ border:1px solid var(--border); color:var(--text); }
+  .btn-secondary:hover{ border-color:var(--pink); background:var(--surface); }
+  .btn-ghost{ color:var(--pink); font-size:13.5px; padding:10px; }
+
+  /* ================= FEED SCREEN ================= */
+  .feed{ position:relative; background:
+      linear-gradient(160deg, #3a1240 0%, #1c1030 35%, #140f22 100%);
+    overflow:hidden;
+  }
+  .feed::before{
+    content:""; position:absolute; inset:0;
+    background: radial-gradient(circle at 30% 20%, rgba(255,101,28,.35), transparent 45%),
+                radial-gradient(circle at 75% 65%, rgba(125,39,227,.4), transparent 50%),
+                radial-gradient(circle at 20% 80%, rgba(253,54,103,.3), transparent 45%);
+  }
+  .feed-topgrad{ position:absolute; top:0; left:0; right:0; height:130px; background:linear-gradient(to bottom, rgba(0,0,0,.5), transparent); z-index:2; }
+  .feed-botgrad{ position:absolute; bottom:0; left:0; right:0; height:280px; background:linear-gradient(to top, rgba(9,9,11,.95), transparent); z-index:2; }
+  .feed-badge{ position:absolute; top:52px; left:50%; transform:translateX(-50%); z-index:3; font-family:var(--font-mono); font-size:11px; letter-spacing:.08em; color:var(--text-muted); text-transform:uppercase; }
+  .phone[data-size="compact"] .feed-badge{ top:30px; }
+
+  .feed-play{ position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:4; }
+  .play-btn{
+    all:unset; cursor:pointer; width:74px; height:74px; border-radius:50%;
+    background:rgba(9,9,11,.45); border:1.5px solid rgba(255,255,255,.35); backdrop-filter:blur(6px);
+    display:flex; align-items:center; justify-content:center; transition:transform .2s ease, background .2s ease;
+  }
+  .play-btn:hover{ transform:translate(-50%,-50%) scale(1.04); }
+  .play-btn svg{ width:26px; height:26px; margin-left:3px; }
+  .play-btn.is-playing svg{ margin-left:0; }
+
+  .feed-overlay{ position:absolute; left:0; right:0; bottom:0; z-index:5; padding:0 74px 20px 18px; }
+  .creator-row{ display:flex; align-items:center; gap:9px; margin-bottom:10px; }
+  .avatar{ width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:var(--font-display); font-size:12px; font-weight:600; color:#fff; flex:none; background:var(--gradient-brand); }
+  .avatar.small{ width:26px; height:26px; font-size:10px; }
+  .creator-name{ font-weight:600; font-size:14px; }
+  .platform-chip{ display:inline-flex; align-items:center; gap:4px; font-size:10px; font-weight:600; padding:3px 8px; border-radius:var(--r-pill); background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.15); }
+  .caption{ font-size:13px; line-height:1.5; color:#EDEDF2; margin:0 0 8px; }
+  .swipe-hint{ font-size:11px; color:var(--text-muted); display:flex; align-items:center; gap:5px; }
+
+  .feed-rail{ position:absolute; right:12px; bottom:70px; z-index:5; display:flex; flex-direction:column; align-items:center; gap:18px; }
+  .rail-btn{ all:unset; cursor:pointer; width:40px; height:40px; border-radius:50%; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.14); display:flex; align-items:center; justify-content:center; transition:background .18s ease; }
+  .rail-btn:hover{ background:rgba(255,255,255,.16); }
+  .rail-btn svg{ width:19px; height:19px; }
+  .rail-count{ font-family:var(--font-mono); font-size:10.5px; color:var(--text-muted); text-align:center; }
+  .rail-count b{ display:block; color:var(--text); font-size:11.5px; font-variant-numeric:tabular-nums; }
+
+  /* ================= SUBMIT SCREEN ================= */
+  .submit{ padding:0 20px; }
+  .screen-header{ padding:20px 0 6px; flex:none; }
+  .screen-header h3{ font-family:var(--font-display); font-size:20px; font-weight:600; margin:0 0 6px; }
+  .screen-header p{ font-size:12.5px; color:var(--text-muted); margin:0; line-height:1.5; }
+
+  .field-label{ font-size:11.5px; font-weight:600; color:var(--text-muted); margin:20px 0 8px; text-transform:uppercase; letter-spacing:.05em; }
+  .input{ width:100%; background:var(--surface); border:1px solid var(--border); border-radius:var(--r-md); padding:13px 14px; color:var(--text); font-size:13.5px; font-family:var(--font-mono); transition:border-color .18s ease, box-shadow .18s ease; }
+  .input:focus{ outline:none; border-color:var(--pink); box-shadow:0 0 0 3px rgba(253,54,103,.15); }
+  .input.is-valid{ border-color:var(--purple); }
+
+  .validate-row{ display:flex; align-items:center; gap:7px; font-size:12px; color:var(--purple); font-weight:600; margin-top:10px; height:16px; opacity:0; transition:opacity .25s ease; }
+  .validate-row.show{ opacity:1; }
+  .validate-row svg{ width:14px; height:14px; }
+
+  .try-btn{ all:unset; cursor:pointer; font-size:12px; color:var(--pink); font-weight:600; margin-top:14px; display:inline-block; }
+  .try-btn:hover{ text-decoration:underline; }
+
+  .meta-preview{ margin-top:18px; background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); padding:12px; display:flex; gap:12px; opacity:0; transform:translateY(6px); transition:all .3s ease; pointer-events:none; }
+  .meta-preview.show{ opacity:1; transform:translateY(0); pointer-events:auto; }
+  .meta-thumb{ width:64px; height:64px; border-radius:var(--r-sm); flex:none; background:linear-gradient(135deg, var(--coral), var(--purple)); position:relative; overflow:hidden; }
+  .meta-thumb::after{ content:""; position:absolute; inset:0; background:radial-gradient(circle at 65% 30%, rgba(255,255,255,.25), transparent 55%); }
+  .meta-info{ min-width:0; }
+  .meta-title{ font-size:13px; font-weight:600; margin:0 0 4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .meta-author{ font-size:11.5px; color:var(--text-muted); margin:0 0 6px; }
+
+  .submit-cta{ margin-top:auto; padding:18px 0 8px; }
+  .helper-note{ font-size:11px; color:var(--text-muted); text-align:center; margin-top:10px; line-height:1.5; }
+
+  /* ================= MY VIDEOS SCREEN ================= */
+  .myvideos{ padding:0 20px; position:relative; }
+  .stat-line{ font-family:var(--font-mono); font-size:12px; color:var(--text-muted); margin-top:4px; }
+  .stat-line b{ color:var(--text); font-variant-numeric:tabular-nums; }
+
+  .video-list{ display:flex; flex-direction:column; gap:10px; margin-top:16px; overflow-y:auto; padding-bottom:80px; }
+  .video-row{ display:flex; gap:12px; background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); padding:10px; transition:border-color .18s ease, transform .18s ease; }
+  .video-row:hover{ border-color:#3a3a44; transform:translateY(-1px); }
+  .vr-thumb{ width:56px; height:56px; border-radius:var(--r-sm); flex:none; position:relative; overflow:hidden; }
+  .vr-thumb::after{ content:""; position:absolute; inset:0; background:radial-gradient(circle at 30% 70%, rgba(255,255,255,.2), transparent 55%); }
+  .vr-thumb.g1{ background:linear-gradient(135deg, var(--orange), var(--pink)); }
+  .vr-thumb.g2{ background:linear-gradient(135deg, var(--magenta), var(--deep-purple)); }
+  .vr-thumb.g3{ background:linear-gradient(135deg, var(--coral), #5c1c3a); }
+  .vr-info{ min-width:0; flex:1; display:flex; flex-direction:column; justify-content:center; gap:4px; }
+  .vr-title{ font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .vr-meta{ display:flex; align-items:center; gap:8px; }
+  .vr-views{ font-family:var(--font-mono); font-size:11px; color:var(--text-muted); }
+
+  .badge{ font-size:10px; font-weight:700; padding:3px 8px; border-radius:var(--r-pill); text-transform:uppercase; letter-spacing:.04em; display:inline-block; }
+  .badge-approved{ background:rgba(125,39,227,.18); color:#b78cf5; border:1px solid rgba(125,39,227,.5); }
+  .badge-pending{ background:rgba(219,50,147,.18); color:#f291c6; border:1px solid rgba(219,50,147,.5); }
+  .badge-rejected{ background:rgba(254,73,64,.18); color:#ff9d96; border:1px solid rgba(254,73,64,.5); }
+  .vr-reason{ font-size:10.5px; color:var(--coral); margin-top:2px; }
+
+  .fab{ all:unset; cursor:pointer; position:absolute; right:20px; bottom:24px; width:52px; height:52px; border-radius:50%; background:var(--gradient-brand); display:flex; align-items:center; justify-content:center; box-shadow:0 10px 24px -6px rgba(253,54,103,.55); transition:transform .18s ease; }
+  .fab:hover{ transform:scale(1.06); }
+  .fab svg{ width:22px; height:22px; }
+
+  /* ================= PROFILE SCREEN ================= */
+  .profile{ padding:0 20px; overflow-y:auto; }
+  .profile-head{ display:flex; flex-direction:column; align-items:center; text-align:center; padding-top:26px; }
+  .avatar-ring{ width:84px; height:84px; border-radius:50%; padding:3px; background:var(--gradient-brand); position:relative; }
+  .avatar-ring .avatar{ width:100%; height:100%; font-size:26px; border:3px solid var(--bg); }
+  .avatar-edit{ position:absolute; bottom:-2px; right:-2px; width:26px; height:26px; border-radius:50%; background:var(--surface); border:2px solid var(--bg); display:flex; align-items:center; justify-content:center; }
+  .avatar-edit svg{ width:12px; height:12px; }
+  .profile-name{ font-family:var(--font-display); font-size:18px; font-weight:600; margin:14px 0 4px; }
+  .profile-bio{ font-size:12.5px; color:var(--text-muted); max-width:26ch; line-height:1.5; margin:0; }
+
+  .handle-row{ display:flex; gap:8px; margin-top:14px; }
+  .handle-chip{ display:flex; align-items:center; gap:6px; background:var(--surface); border:1px solid var(--border); border-radius:var(--r-pill); padding:6px 12px 6px 6px; font-size:12px; font-weight:500; }
+  .platform-mark{ width:18px; height:18px; border-radius:5px; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:800; color:#fff; flex:none; }
+  .platform-mark.yt{ background:#FF651C; }
+  .platform-mark.ig{ background:linear-gradient(135deg, var(--magenta), var(--purple)); }
+
+  .stat-tiles{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:20px 0; }
+  .stat-tile{ background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); padding:14px; text-align:center; }
+  .stat-tile .num{ font-family:var(--font-mono); font-size:20px; font-weight:600; font-variant-numeric:tabular-nums; }
+  .stat-tile .lbl{ font-size:10.5px; color:var(--text-muted); margin-top:2px; }
+  .stat-tile .sub{ font-size:9px; color:#68686f; margin-top:3px; }
+
+  .settings-list{ display:flex; flex-direction:column; margin-top:6px; border-top:1px solid var(--border); }
+  .settings-item{ display:flex; align-items:center; justify-content:space-between; padding:14px 2px; border-bottom:1px solid var(--border); font-size:13.5px; cursor:pointer; }
+  .settings-item .chev{ color:#4a4a52; }
+  .settings-item.danger{ color:var(--coral); }
+
+  /* ---------- token strip ---------- */
+  .token-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+  .swatch{ background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); padding:16px; }
+  .swatch-chip{ width:100%; height:52px; border-radius:var(--r-md); margin-bottom:12px; }
+  .swatch-name{ font-size:13.5px; font-weight:600; margin:0 0 2px; }
+  .swatch-hex{ font-family:var(--font-mono); font-size:11.5px; color:var(--text-muted); margin:0 0 6px; }
+  .swatch-use{ font-size:11.5px; color:#7d7d86; margin:0; }
+
+  .type-grid{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; }
+  .type-card{ background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); padding:20px; }
+  .type-card .label{ font-family:var(--font-mono); font-size:10.5px; text-transform:uppercase; letter-spacing:.08em; color:var(--text-muted); margin-bottom:14px; }
+  .type-card .sample{ font-size:26px; line-height:1.2; margin:0 0 8px; }
+  .type-card.display .sample{ font-family:var(--font-display); font-weight:700; }
+  .type-card.body .sample{ font-family:var(--font-body); font-weight:600; font-size:22px; }
+  .type-card.mono .sample{ font-family:var(--font-mono); font-weight:600; font-size:20px; font-variant-numeric:tabular-nums; }
+  .type-card .meta{ font-size:11.5px; color:#7d7d86; }
+
+  .component-strip{ display:flex; flex-wrap:wrap; gap:14px; align-items:center; background:var(--surface); border:1px solid var(--border); border-radius:var(--r-xl); padding:24px; }
+  .component-strip .btn{ width:auto; }
+  .mini-input{ width:180px; }
+
+  footer{ padding:56px 0 40px; border-top:1px solid var(--border); margin-top:64px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; }
+  .footer-brand{ display:flex; align-items:center; gap:10px; font-size:13px; color:var(--text-muted); }
+  .footer-grad{ width:120px; height:3px; border-radius:2px; background:var(--gradient-brand); }
+
+  @media (max-width: 900px){
+    .hero{ grid-template-columns:1fr; }
+    .hero-side{ border-left:none; border-top:1px solid var(--border); padding-left:0; padding-top:16px; }
+    .showcase{ grid-template-columns:1fr; }
+    .controls{ position:static; flex-direction:row; flex-wrap:wrap; }
+    .token-grid{ grid-template-columns:repeat(2,1fr); }
+    .type-grid{ grid-template-columns:1fr; }
+    .phone{ transform:scale(.86); }
+  }
+  @media (max-width: 480px){
+    .wrap{ padding:0 18px; }
+    .token-grid{ grid-template-columns:1fr; }
+    .phone{ transform:scale(.72); margin:-70px 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="ambient">
+  <div class="blob blob--a"></div>
+  <div class="blob blob--b"></div>
+  <div class="blob blob--c"></div>
+</div>
+
+<div class="wrap">
+
+  <div class="topbar">
+    <div class="brand">
+      <svg width="26" height="26" viewBox="0 0 40 40" fill="none">
+        <defs>
+          <linearGradient id="logoGrad" x1="2" y1="2" x2="38" y2="38" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stop-color="#FF651C"/><stop offset=".5" stop-color="#FD3667"/><stop offset="1" stop-color="#7D27E3"/>
+          </linearGradient>
+        </defs>
+        <rect x="2" y="2" width="36" height="36" rx="11" stroke="url(#logoGrad)" stroke-width="2.6"/>
+        <path d="M16.5 14.5L26 20L16.5 25.5V14.5Z" fill="url(#logoGrad)"/>
+      </svg>
+      <span class="brand-name">Reel<span class="spark">Spark</span></span>
+    </div>
+    <span class="topbar-tag">MOBILE UI KIT — v1.0</span>
+  </div>
+
+  <section class="hero">
+    <div>
+      <svg class="hero-mark" viewBox="0 0 40 40" fill="none">
+        <rect x="2" y="2" width="36" height="36" rx="11" stroke="url(#logoGrad)" stroke-width="2.6"/>
+        <path d="M16.5 14.5L26 20L16.5 25.5V14.5Z" fill="url(#logoGrad)"/>
+        <path d="M31 8L32 10.5L34.5 11.5L32 12.5L31 15L30 12.5L27.5 11.5L30 10.5L31 8Z" fill="#FE4940"/>
+      </svg>
+      <h1 class="hero-title">Every screen your<br><span class="grad">creators</span> will scroll through.</h1>
+      <p class="hero-sub">A complete mobile interface for ReelSpark — the app where creators trade real attention for real Shorts &amp; Reels views. Built dark, built bold, built on the brand system.</p>
+    </div>
+    <div class="hero-side">
+      <div><b>Platform</b> — React Native · Expo</div>
+      <div><b>Theme</b> — Dark, brand-committed</div>
+      <div><b>Type</b> — Unbounded / Inter / Mono</div>
+      <div><b>Screens</b> — 5 core flows shown live →</div>
+    </div>
+  </section>
+
+  <div class="section-head">
+    <p class="eyebrow">Interactive preview</p>
+    <h2>Tap through the app</h2>
+    <p>Every screen below is live — switch flows, resize the device, tap the play button, paste a link.</p>
+    <div class="rule"></div>
+  </div>
+
+  <div class="showcase">
+    <div class="controls">
+      <div class="control-group">
+        <label class="group-label">Screen</label>
+        <div class="screen-tabs" id="screenTabs">
+          <button class="screen-tab is-active" data-screen="welcome"><span class="dot"></span>Welcome</button>
+          <button class="screen-tab" data-screen="feed"><span class="dot"></span>Feed</button>
+          <button class="screen-tab" data-screen="submit"><span class="dot"></span>Submit a Video</button>
+          <button class="screen-tab" data-screen="myvideos"><span class="dot"></span>My Videos</button>
+          <button class="screen-tab" data-screen="profile"><span class="dot"></span>Profile</button>
+        </div>
+      </div>
+      <div class="control-group">
+        <label class="group-label">Device size</label>
+        <div class="device-toggle" id="deviceToggle">
+          <button class="device-btn" data-size="compact">320</button>
+          <button class="device-btn is-active" data-size="standard">375</button>
+          <button class="device-btn" data-size="large">430</button>
+        </div>
+      </div>
+      <div class="note-card" id="screenNote">
+        <div class="flag">Product note</div>
+        Manual play, no autoplay — the user taps to watch. In-app view counts are shown clearly as in-app only, never implied as real YouTube/Instagram totals.
+      </div>
+    </div>
+
+    <div class="stage">
+      <div class="phone" id="phone" data-size="standard">
+        <div class="notch" id="notchEl"></div>
+        <div class="island" id="islandEl" style="display:none;"></div>
+        <div class="phone-screen">
+          <div class="statusbar">
+            <span>9:41</span>
+            <span class="icons">
+              <span class="sb-signal"><i style="height:3px"></i><i style="height:5px"></i><i style="height:7px"></i><i style="height:9px"></i></span>
+              <svg width="15" height="11" viewBox="0 0 16 12" fill="#fff"><path d="M8 9.5a1.2 1.2 0 100 2.4 1.2 1.2 0 000-2.4zM4.2 6.6a5.4 5.4 0 017.6 0l-1.3 1.3a3.6 3.6 0 00-5 0L4.2 6.6zM1 3.4a9.8 9.8 0 0114 0L13.7 4.7a7.9 7.9 0 00-11.4 0L1 3.4z"/></svg>
+              <span class="sb-battery"></span>
+            </span>
+          </div>
+
+          <div class="screen-body">
+
+            <!-- WELCOME -->
+            <div class="screen-view welcome is-active" data-screen="welcome">
+              <div class="welcome-top">
+                <svg class="welcome-mark" viewBox="0 0 40 40" fill="none">
+                  <rect x="2" y="2" width="36" height="36" rx="11" stroke="url(#logoGrad)" stroke-width="2.6"/>
+                  <path d="M16.5 14.5L26 20L16.5 25.5V14.5Z" fill="url(#logoGrad)"/>
+                </svg>
+                <div class="welcome-word">Reel<span class="sp">Spark</span></div>
+                <h3 class="welcome-headline">Boost your Shorts.<br>Spark your audience.</h3>
+                <p class="welcome-copy">Submit your own YouTube Shorts or Instagram Reels and get real people watching — from creators who watch back.</p>
+              </div>
+              <div class="welcome-actions">
+                <button class="btn btn-primary">Create account</button>
+                <button class="btn btn-secondary">I already have an account</button>
+                <p class="welcome-legal">By continuing you agree to our Terms &amp; Privacy Policy</p>
+              </div>
+            </div>
+
+            <!-- FEED -->
+            <div class="screen-view feed" data-screen="feed">
+              <div class="feed-topgrad"></div>
+              <div class="feed-badge">For You</div>
+              <div class="feed-play">
+                <button class="play-btn" id="playBtn">
+                  <svg id="playIcon" viewBox="0 0 24 24" fill="#fff"><path d="M8 5v14l11-7z"/></svg>
+                </button>
+              </div>
+              <div class="feed-rail">
+                <div>
+                  <button class="rail-btn" aria-label="Report video">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8"><path d="M5 21V4a1 1 0 011-1h9.5l-.9 4 .9 4H7"/></svg>
+                  </button>
+                </div>
+                <div>
+                  <button class="rail-btn" aria-label="Share video">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8"><circle cx="18" cy="5" r="2.6"/><circle cx="6" cy="12" r="2.6"/><circle cx="18" cy="19" r="2.6"/><path d="M8.3 10.7l7.4-4.2M8.3 13.3l7.4 4.2"/></svg>
+                  </button>
+                </div>
+                <div class="rail-count">
+                  <b id="railCount">128</b>views
+                </div>
+              </div>
+              <div class="feed-botgrad"></div>
+              <div class="feed-overlay">
+                <div class="creator-row">
+                  <div class="avatar small">MR</div>
+                  <span class="creator-name">@marcusfilms</span>
+                  <span class="platform-chip">▶ Shorts</span>
+                </div>
+                <p class="caption">3am editing sessions hit different 🎬</p>
+                <div class="swipe-hint">↑ Swipe up for next</div>
+              </div>
+            </div>
+
+            <!-- SUBMIT -->
+            <div class="screen-view submit" data-screen="submit">
+              <div class="screen-header">
+                <h3>Submit a video</h3>
+                <p>Paste a link to your own YouTube Shorts or Instagram Reel.</p>
+              </div>
+              <div class="field-label">Video URL</div>
+              <input class="input" id="urlInput" type="text" placeholder="https://youtube.com/shorts/…" />
+              <div class="validate-row" id="validateRow">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 13l4 4L19 7"/></svg>
+                YouTube Shorts detected
+              </div>
+              <button class="try-btn" id="tryBtn">Try an example link →</button>
+
+              <div class="meta-preview" id="metaPreview">
+                <div class="meta-thumb"></div>
+                <div class="meta-info">
+                  <p class="meta-title">3am editing sessions hit different</p>
+                  <p class="meta-author">@marcusfilms · YouTube Shorts</p>
+                  <span class="platform-chip">▶ Shorts</span>
+                </div>
+              </div>
+
+              <div class="submit-cta">
+                <button class="btn btn-primary" id="submitBtn" disabled>Submit video</button>
+                <p class="helper-note">Your video stays on YouTube — we never re-host your content.</p>
+              </div>
+            </div>
+
+            <!-- MY VIDEOS -->
+            <div class="screen-view myvideos" data-screen="myvideos">
+              <div class="screen-header">
+                <h3>My videos</h3>
+                <div class="stat-line"><b>3</b> submissions · <b>1,204</b> in-app views total</div>
+              </div>
+              <div class="video-list">
+                <div class="video-row">
+                  <div class="vr-thumb g1"></div>
+                  <div class="vr-info">
+                    <div class="vr-title">3am editing sessions hit different</div>
+                    <div class="vr-meta"><span class="badge badge-approved">Approved</span><span class="vr-views">842 views</span></div>
+                  </div>
+                </div>
+                <div class="video-row">
+                  <div class="vr-thumb g2"></div>
+                  <div class="vr-info">
+                    <div class="vr-title">Studio tour, part two</div>
+                    <div class="vr-meta"><span class="badge badge-pending">Pending review</span></div>
+                  </div>
+                </div>
+                <div class="video-row">
+                  <div class="vr-thumb g3"></div>
+                  <div class="vr-info">
+                    <div class="vr-title">Behind the scenes: color grade</div>
+                    <div class="vr-meta"><span class="badge badge-rejected">Rejected</span></div>
+                    <div class="vr-reason">Reason: link no longer available</div>
+                  </div>
+                </div>
+              </div>
+              <button class="fab" aria-label="Submit new video">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg>
+              </button>
+            </div>
+
+            <!-- PROFILE -->
+            <div class="screen-view profile" data-screen="profile">
+              <div class="profile-head">
+                <div class="avatar-ring">
+                  <div class="avatar">MR</div>
+                  <div class="avatar-edit"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4 12.5-12.5z"/></svg></div>
+                </div>
+                <div class="profile-name">Marcus Reyes</div>
+                <p class="profile-bio">Editor &amp; motion designer. Posting shorts daily.</p>
+                <div class="handle-row">
+                  <div class="handle-chip"><span class="platform-mark yt">YT</span>@marcusfilms</div>
+                  <div class="handle-chip"><span class="platform-mark ig">IG</span>@marcus.edits</div>
+                </div>
+              </div>
+              <div class="stat-tiles">
+                <div class="stat-tile"><div class="num">3</div><div class="lbl">Videos submitted</div></div>
+                <div class="stat-tile"><div class="num">1,204</div><div class="lbl">In-app views</div><div class="sub">not your real platform count</div></div>
+              </div>
+              <button class="btn btn-secondary" style="width:100%">Edit profile</button>
+              <div class="settings-list">
+                <div class="settings-item">Account settings<span class="chev">›</span></div>
+                <div class="settings-item">Notifications<span class="chev">›</span></div>
+                <div class="settings-item">Help &amp; support<span class="chev">›</span></div>
+                <div class="settings-item danger">Log out<span class="chev">›</span></div>
+              </div>
+            </div>
+
+          </div>
+
+          <div class="tabbar" id="tabbar">
+            <div class="tabbar-item is-active" data-tab="feed">
+              <svg class="tabbar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M10 8.5l6 3.5-6 3.5v-7z" fill="currentColor" stroke="none"/></svg>
+              <span class="tabbar-label">Feed</span>
+            </div>
+            <div class="tabbar-item" data-tab="submit">
+              <svg class="tabbar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg>
+              <span class="tabbar-label">Submit</span>
+            </div>
+            <div class="tabbar-item" data-tab="myvideos">
+              <svg class="tabbar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M3 9.5h18"/></svg>
+              <span class="tabbar-label">My Videos</span>
+            </div>
+            <div class="tabbar-item" data-tab="profile">
+              <svg class="tabbar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8.5" r="3.4"/><path d="M4.5 20a7.5 7.5 0 0115 0"/></svg>
+              <span class="tabbar-label">Profile</span>
+            </div>
+          </div>
+          <div class="home-indicator" id="homeIndicator"></div>
+          <div class="home-btn" id="homeBtn" style="display:none;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-head">
+    <p class="eyebrow">Design tokens</p>
+    <h2>Brand palette</h2>
+    <p>The exact values from the ReelSpark brand handoff — used consistently across every screen above.</p>
+    <div class="rule"></div>
+  </div>
+
+  <div class="token-grid">
+    <div class="swatch"><div class="swatch-chip" style="background:#FF651C"></div><p class="swatch-name">Primary Orange</p><p class="swatch-hex">#FF651C</p><p class="swatch-use">Gradient start / highlights</p></div>
+    <div class="swatch"><div class="swatch-chip" style="background:#FE4940"></div><p class="swatch-name">Reel Coral</p><p class="swatch-hex">#FE4940</p><p class="swatch-use">Warm accent / hover</p></div>
+    <div class="swatch"><div class="swatch-chip" style="background:#FD3667"></div><p class="swatch-name">Spark Pink</p><p class="swatch-hex">#FD3667</p><p class="swatch-use">Primary CTA / active states</p></div>
+    <div class="swatch"><div class="swatch-chip" style="background:#DB3293"></div><p class="swatch-name">Magenta</p><p class="swatch-hex">#DB3293</p><p class="swatch-use">Icons / secondary accent</p></div>
+    <div class="swatch"><div class="swatch-chip" style="background:#7D27E3"></div><p class="swatch-name">Electric Purple</p><p class="swatch-hex">#7D27E3</p><p class="swatch-use">Gradient end / active states</p></div>
+    <div class="swatch"><div class="swatch-chip" style="background:#5B18C9"></div><p class="swatch-name">Deep Purple</p><p class="swatch-hex">#5B18C9</p><p class="swatch-use">Gradient depth / emphasis</p></div>
+    <div class="swatch"><div class="swatch-chip" style="background:#09090B; border:1px solid #29292F"></div><p class="swatch-name">Background</p><p class="swatch-hex">#09090B</p><p class="swatch-use">Main app background</p></div>
+    <div class="swatch"><div class="swatch-chip" style="background:#141418; border:1px solid #29292F"></div><p class="swatch-name">Card Background</p><p class="swatch-hex">#141418</p><p class="swatch-use">Cards / navbar / modals</p></div>
+    <div class="swatch"><div class="swatch-chip" style="background:#A6A6B0"></div><p class="swatch-name">Secondary Text</p><p class="swatch-hex">#A6A6B0</p><p class="swatch-use">Body copy / metadata</p></div>
+  </div>
+
+  <div class="section-head">
+    <p class="eyebrow">Typography</p>
+    <h2>Type system</h2>
+    <p>Unbounded carries the brand voice on headlines and the logotype; Inter runs the interface; a monospace face keeps every number honest.</p>
+    <div class="rule"></div>
+  </div>
+
+  <div class="type-grid">
+    <div class="type-card display"><div class="label">Display — Unbounded 700</div><p class="sample">Spark it.</p><div class="meta">Headlines, wordmark, hero copy</div></div>
+    <div class="type-card body"><div class="label">Body / UI — Inter 600</div><p class="sample">Submit a video</p><div class="meta">Buttons, labels, running text</div></div>
+    <div class="type-card mono"><div class="label">Data — JetBrains Mono</div><p class="sample">1,204 views</p><div class="meta">Counters, stats, video IDs</div></div>
+  </div>
+
+  <div class="section-head">
+    <p class="eyebrow">Components</p>
+    <h2>Core building blocks</h2>
+    <p>Buttons, inputs and status badges as specified in the design system — ready to implement.</p>
+    <div class="rule"></div>
+  </div>
+
+  <div class="component-strip">
+    <button class="btn btn-primary">Primary action</button>
+    <button class="btn btn-secondary">Secondary</button>
+    <button class="btn btn-ghost">Ghost link</button>
+    <input class="input mini-input" placeholder="Input field" />
+    <span class="badge badge-approved">Approved</span>
+    <span class="badge badge-pending">Pending</span>
+    <span class="badge badge-rejected">Rejected</span>
+  </div>
+
+  <footer>
+    <div class="footer-brand">
+      <svg width="20" height="20" viewBox="0 0 40 40" fill="none"><rect x="2" y="2" width="36" height="36" rx="11" stroke="url(#logoGrad)" stroke-width="2.6"/><path d="M16.5 14.5L26 20L16.5 25.5V14.5Z" fill="url(#logoGrad)"/></svg>
+      ReelSpark — Mobile UI Kit, built from PROJECT_PLAN.md
+    </div>
+    <div class="footer-grad"></div>
+  </footer>
+
+</div>
+
+<script>
+  (function(){
+    var tabs = document.querySelectorAll('.screen-tab');
+    var views = document.querySelectorAll('.screen-view');
+    var tabbarItems = document.querySelectorAll('.tabbar-item');
+    var notes = {
+      welcome: 'First-run flow. A mandatory "complete your profile" step follows sign-up before a user can submit videos.',
+      feed: 'Manual play, no autoplay — the user taps to watch. In-app view counts are shown clearly as in-app only, never implied as real YouTube/Instagram totals.',
+      submit: 'Client-side URL validation runs instantly on paste; metadata is fetched server-side via a Supabase Edge Function.',
+      myvideos: 'Every submission tracks its own moderation status — pending, approved, rejected or flagged — visible to the creator who posted it.',
+      profile: 'YouTube and Instagram handles are self-reported at this stage; ownership verification is a deliberate future-phase item.'
+    };
+    var tabbarMap = { welcome:'feed', feed:'feed', submit:'submit', myvideos:'myvideos', profile:'profile' };
+
+    function showScreen(name){
+      tabs.forEach(function(t){ t.classList.toggle('is-active', t.dataset.screen === name); });
+      views.forEach(function(v){ v.classList.toggle('is-active', v.dataset.screen === name); });
+      var activeTab = tabbarMap[name];
+      tabbarItems.forEach(function(t){ t.classList.toggle('is-active', t.dataset.tab === activeTab); });
+      document.getElementById('screenNote').lastChild.textContent = notes[name] || '';
+    }
+    tabs.forEach(function(t){ t.addEventListener('click', function(){ showScreen(t.dataset.screen); }); });
+    tabbarItems.forEach(function(t){
+      t.style.cursor = 'pointer';
+      t.addEventListener('click', function(){
+        var target = t.dataset.tab === 'feed' ? 'feed' : t.dataset.tab;
+        showScreen(target);
+      });
+    });
+
+    var deviceBtns = document.querySelectorAll('.device-btn');
+    var phone = document.getElementById('phone');
+    var notch = document.getElementById('notchEl');
+    var island = document.getElementById('islandEl');
+    var homeBtn = document.getElementById('homeBtn');
+    var homeIndicator = document.getElementById('homeIndicator');
+    deviceBtns.forEach(function(b){
+      b.addEventListener('click', function(){
+        deviceBtns.forEach(function(x){ x.classList.remove('is-active'); });
+        b.classList.add('is-active');
+        var size = b.dataset.size;
+        phone.dataset.size = size;
+        if(size === 'compact'){
+          island.style.display = 'none'; notch.style.display='none';
+          homeBtn.style.display = 'block'; homeIndicator.style.display = 'none';
+        } else if(size === 'large'){
+          island.style.display = 'block'; notch.style.display='none';
+          homeBtn.style.display = 'none'; homeIndicator.style.display = 'block';
+        } else {
+          island.style.display = 'none'; notch.style.display='block';
+          homeBtn.style.display = 'none'; homeIndicator.style.display = 'block';
+        }
+      });
+    });
+
+    var playBtn = document.getElementById('playBtn');
+    var playIcon = document.getElementById('playIcon');
+    var railCount = document.getElementById('railCount');
+    var playing = false;
+    playBtn.addEventListener('click', function(){
+      playing = !playing;
+      playBtn.classList.toggle('is-playing', playing);
+      if(playing){
+        playIcon.innerHTML = '<path d="M7 5h4v14H7zM13 5h4v14h-4z"/>';
+        railCount.textContent = '129';
+      } else {
+        playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+      }
+    });
+
+    var urlInput = document.getElementById('urlInput');
+    var validateRow = document.getElementById('validateRow');
+    var metaPreview = document.getElementById('metaPreview');
+    var submitBtn = document.getElementById('submitBtn');
+    var tryBtn = document.getElementById('tryBtn');
+
+    function validate(hasValue){
+      urlInput.classList.toggle('is-valid', hasValue);
+      validateRow.classList.toggle('show', hasValue);
+      metaPreview.classList.toggle('show', hasValue);
+      submitBtn.disabled = !hasValue;
+    }
+    urlInput.addEventListener('input', function(){ validate(urlInput.value.trim().length > 8); });
+    tryBtn.addEventListener('click', function(){
+      urlInput.value = 'https://youtube.com/shorts/9kLmR2vTqXo';
+      validate(true);
+    });
+  })();
+</script>
+</body>
+</html>

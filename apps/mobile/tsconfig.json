@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "lib": ["DOM", "DOM.Iterable", "ESNext"],
+    "jsx": "react-jsx",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "types": ["vite/client"],
+    "paths": {
+      "expo-linear-gradient": ["./src/shims/expo-linear-gradient.tsx"],
+      "expo-image-picker": ["./src/shims/expo-image-picker.ts"],
+      "@expo/vector-icons": ["./src/shims/vector-icons.tsx"]
+    }
+  },
+  "include": ["App.tsx", "src", "vite-env.d.ts", "vite.config.ts"]
+}

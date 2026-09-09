@@ -1,0 +1,20 @@
+# root-level dependencies (apps/mobile and apps/admin have their own .gitignore)
+node_modules/
+
+# env files anywhere in the repo
+.env
+.env.local
+.env*.local
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# editor
+.vscode/*
+!.vscode/extensions.json
+.idea
+
+# supabase local dev
+supabase/.branches
+supabase/.temp

@@ -1,0 +1,222 @@
+# Mobile app — Vite + react-native-web
+
+This app was migrated off Expo. It now runs in the browser only:
+
+- **Bundler/dev server:** Vite (`npm run dev`, port 5174). No Metro, no Expo CLI.
+- **Runtime:** `react-native` is aliased to `react-native-web` in `vite.config.ts`.
+- **Removed Expo modules** are replaced by small local shims in `src/shims/`:
+  - `expo-linear-gradient` → CSS `linear-gradient` on a View
+  - `expo-image-picker` → hidden `<input type="file">`
+  - `@expo/vector-icons` (`Feather`, `Ionicons`) → inline SVG, only the glyphs in use
+- **Fonts:** `src/fonts.css` defines `@font-face`s (named to match `src/theme/tokens.ts`) from the `@fontsource/*` packages.
+- **Env:** Vite vars — `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (see `.env.example`).
+- **Entry:** `index.html` → `src/main.tsx` → `App.tsx`.
+
+There are no native (iOS/Android) targets anymore. Platform-specific files can
+still use the `.web.tsx` suffix, but everything here is the web build.
+
+## Public legal / policy pages
+
+`assets/legal/*.html` are plain, dependency-free static pages (shared
+`styles.css`) that Vite copies from `publicDir` (`assets/`) to the site root, so
+they serve at `/legal/index.html`, `/legal/terms.html`, `/legal/privacy.html`,
+`/legal/refund.html`, `/legal/shipping.html`, `/legal/pricing.html`,
+`/legal/contact.html`. They exist for payment-gateway (Razorpay) merchant
+activation, which requires publicly reachable Terms, Privacy, Refund/Cancellation,
+Shipping/Delivery, Pricing and Contact pages, and are linked from
+`PaymentScreen` (`LEGAL_LINKS`).
+
+Entity: **Matrigyan Private Limited** (Pvt Ltd; GSTIN `19AAQCM7780C1ZY`, West
+Bengal; registered office JL No. 185, Balia, Salua, Kharagpur, Paschim Medinipur,
+WB 721145; directors Santosh Behara & Priya Devi) owns/operates ReelSpark at
+`https://reelspark.in`. The ₹300 annual fee is described as **GST-inclusive**.
+The pages describe the registration fee as an **annual** fee (12-month access,
+non-refundable once access is enabled, no auto-renew) and referral withdrawals as
+paid within **2 working days** — note this differs from the current DB behaviour,
+where `profiles.payment_status='approved'` never expires (payment is still
+effectively one-time in code). Support contact: `support@reelspark.in`,
+`+91 89273 49105`. Only `[CIN …]` on `contact.html` is left as an optional
+fill-in; the fee/bonus figures (₹300 / ₹50 / ₹150) are taken from `app_settings`
+defaults — keep `pricing.html` in sync if they change.
+
+## Responsive layout
+
+`src/theme/responsive.ts` exports `useResponsive()` (built on `useWindowDimensions`,
+so it re-renders on resize). Breakpoints: phone `<768`, `sidebar` (left nav) `≥1000`,
+desktop `≥1024`, wide `≥1440`.
+
+- **Nav:** `MainTabNavigator` uses a bottom tab bar below 1000px and a left nav
+  rail (`material`, `tabBarPosition: 'left'`) at `≥1000` (`sidebarNav`).
+- **Feed:** full-bleed on phone/tablet (`<1000px`); on desktop (`feedDesktop`,
+  `≥1000px`) it's a centered 9:16 phone-frame card (`width` capped at 460, height
+  locked to `width*16/9`) on the dark canvas with an up/down chevron column
+  beside it — the reel is never cropped on wide monitors. `FeedScreen` seeds item
+  height from the window and corrects it via `onLayout` (list is `key`ed on the
+  card height so it remounts, keeping item height === snapToInterval ===
+  getItemLayout length). Because the playing `<iframe>` swallows wheel + key
+  events, desktop advances the feed by index (`listRef.scrollToIndex`): a stage
+  `wheel` listener (one reel per gesture, `preventDefault`s native scroll),
+  `keydown` on `window` while the screen `useIsFocused()` (↑/↓, PageUp/PageDown,
+  Space, j/k), and the chevron buttons — all via `goBy(±1)`. The YouTube embed
+  (`youtubeEmbedHtml.ts`) sizes its player to the **9:16 frame itself** and lets
+  YouTube's embed player cover-fit the clip: a true Short fills the frame with no
+  crop, a landscape clip centre-crops to fill it. (Sizing the player as a 16:9
+  box wider than the frame — the previous approach — made YouTube cover-fit a
+  vertical Short to that over-wide box and zoom ~3x, cropping the Short away.)
+  **Tap-to-play (YouTube):** a YouTube reel does **not** autoplay on scroll-in.
+  `FeedItem` leaves `playing` false while the item is active and shows a
+  full-bleed `Pressable` over the poster with a centred play glyph; tapping it
+  flips `playing` true, which mounts the embed — the player then self-starts
+  muted (`autoplay: 1` + `playVideo()` in `onReady`, `youtubeEmbedHtml.ts`) off
+  that same gesture. Once running, tapping the reel pauses/resumes it via the
+  embed's `#tap` layer, which does **not** re-trigger the `isActive` effect, so
+  a manual pause sticks until the item scrolls out and back in. This is
+  deliberate: an in-app YouTube play is only ever a real, user-initiated watch —
+  the only kind YouTube itself might count toward the video's public view total
+  (see **View counting**). Scrolling the item away flips `playing`/`started`
+  false and unmounts the iframe. The paused poster is a raw
+  `<img>` (RNW `<Image>` ignores `resizeMode` here) using YouTube's 9:16
+  `oardefault.jpg` (`lib/ytThumb.ts`), heavily blurred + darkened as a backdrop.
+  The creator/caption row, the action rail (like/comment/share/views) and the bottom
+  scrim **stay visible while the reel plays** (`box-none` so only the buttons
+  take taps); the full dim, top scrim and "For You" tag show only while stopped.
+- **Instagram:** `VideoPlayer` loads `/reel/<id>/embed/` **directly** as an
+  `<iframe src>` inside a clipping `<div>` (nesting it in a srcDoc frame gave the
+  inner frame an opaque origin and stopped IG playing on tap; a CSS
+  `transform: scale()` broke touch taps on mobile the same way). It hides IG's
+  chrome with **plain layout**: the iframe is rendered `INSTAGRAM_SCALE`× wider
+  than the clip (IG lays its page out to that width so the reel's media grows
+  with it), pulled up `INSTAGRAM_HEADER_PX` and made `INSTAGRAM_EXTRA_HEIGHT_PX`
+  taller than the clip so IG's header/footer sit outside it; the extra width
+  spills evenly past both sides and is cropped. `INSTAGRAM_SCALE` is a
+  compromise (1.5) — enough that the reel's framing stays close to Instagram's
+  rather than the ~1.9 it takes to physically push IG's footer off the clip;
+  `VideoPlayer` then lays the same top + bottom fading scrims the YouTube embed
+  uses over the clip (`INSTAGRAM_MASK_TOP_*` / `INSTAGRAM_MASK_BOTTOM_*` in
+  `instagramEmbedHtml.ts`): the top strip is header padding, the bottom strip is
+  footer padding and stays opaque long enough to hide IG's like/caption/"more on
+  Instagram" text.
+  IG can't autoplay and its centre play button lives on instagram.com's origin,
+  so it can't be scripted or hidden — instead `FeedItem` mounts the IG iframe as
+  soon as the item is active (no app poster / play button on top), so a single
+  tap lands on IG's own control and its button clears itself once the reel plays.
+  The view is counted when an IG item scrolls in (the tap can't be observed
+  inside the iframe); IG items have no "ended" event so they don't auto-advance,
+  and IG's centre **"Watch again on Instagram"** replay card after a reel ends is
+  likewise inside IG's cross-origin iframe and can't be removed from our side —
+  only playing the raw `.mp4` avoids it.
+- **View counting:** `view_count_in_app` (on `videos`) is bumped through the
+  `increment_view_count` RPC (`supabase/migrations/0009_dedupe_video_views.sql`),
+  which is deduped server-side, not client-side — it inserts a
+  `(video_id, viewer_id)` row into `video_views` (PK, so a repeat call is a
+  no-op) and only increments the counter when that insert actually happened,
+  returning whether it did. `FeedItem`'s `countedView` ref (`FeedScreen.tsx`)
+  just guards against firing the RPC twice within one mount; the real
+  once-per-user guarantee (across sessions, reloads, re-scrolling past an item)
+  is the DB unique constraint. The client only bumps the on-screen count
+  optimistically when the RPC reports a new view, so a re-watch doesn't show a
+  bogus increment.
+  **When the view is counted differs by platform.** Instagram: on scroll-in —
+  the tap that starts an IG reel is inside its cross-origin iframe and can't be
+  observed. YouTube: only after **≈30s of real playback** accumulates (or a
+  near-complete watch of a shorter clip). `youtubeEmbedHtml.ts` runs a 1s
+  accumulator while the player is `PLAYING` (pauses freeze it, they don't reset
+  it; scrolling the reel away unmounts the iframe and drops it) and posts
+  `watched` once at `WATCH_THRESHOLD_SECONDS`; `VideoPlayer` forwards that as
+  `onWatched`, and `FeedItem` calls the same `countView()` off it. Combined with
+  tap-to-play (above), that means an in-app YouTube view corresponds to a
+  genuine, user-initiated ~30s watch — the profile of a view YouTube's own
+  systems may also count toward the real video.
+  There is still **no mechanism (and no API) to push a view directly onto
+  YouTube/Instagram** — neither platform exposes a way to increment another
+  video's count, and no URL form or embed flag is a "count this view" switch.
+  Whether an embedded watch counts is entirely YouTube's call; this design only
+  stops the app from counting plays YouTube never would, and never presents
+  `view_count_in_app` as the real platform total (the rail label and the admin
+  video detail both say "in-app views" on purpose).
+  **The full set of levers we have to raise the counted fraction on YouTube,
+  and nothing more:** (1) play through YouTube's official IFrame Player — done;
+  (2) tap-to-play, so every play is user-initiated — done; (3) ≥30s watch before
+  it counts (`WATCH_THRESHOLD_SECONDS`) — done; (4) audible by default
+  (`soundOn` starts `true` in `FeedScreen.tsx` — a muted play is a weaker
+  signal); (5) no auto-advance / no auto-loop (`handleEnded` just stops);
+  (6) `widget_referrer` on the embed so the play shows up as `reelspark.app`
+  under Traffic source -> External in the creator's YouTube Analytics (this is
+  attribution only, still not a view guarantee). **Instagram has none of these
+  levers** — its `/embed/` iframe is cross-origin and unscriptable, so play,
+  watch-time and completion are all unobservable and there is nothing to tune;
+  the IG in-app view is counted on scroll-in and that is the end of what's
+  possible there. The only way to get *guaranteed* real platform views is to
+  send the viewer to youtube.com / instagram.com itself, which the product has
+  chosen not to do.
+- **Likes + comments:** DB in `supabase/migrations/0012_likes_comments.sql`.
+  `videos` gains denormalised `like_count` / `comment_count` columns kept in sync
+  by triggers, so `get_feed_page` (which is `select *` off `public.videos`)
+  returns them with no join or function change. `video_likes` (PK
+  `(video_id, user_id)`) and `video_comments` (soft-deleted via `is_deleted`) are
+  both readable by **any** authenticated user for an approved video, and any
+  authenticated user can like/unlike (`toggle_video_like(p_video_id)` RPC,
+  `security definer`, returns the resulting liked state) and post/delete their
+  own comments (plain RLS'd inserts/updates). `useFeed` does one extra
+  `video_likes` query per page to set `liked_by_me` on each row for the heart's
+  initial state. `FeedItem` holds `liked` / `likeCount` / `commentCount` in local
+  state (seeded from the feed row, updated optimistically then reconciled against
+  the RPC's return); the heart + comment buttons sit at the top of the action
+  rail with the exact count under each — **no count is shown while it's 0**.
+  Tapping the comment button opens `CommentsSheet`
+  (`src/components/CommentsSheet.tsx`) — a bottom sheet with an infinite list
+  (`useComments`, newest first, joins `profiles` for author name/avatar) and an
+  input row (`useAddComment` / `useDeleteComment`). The reel pauses while the
+  sheet is open (`showReel && !commentsOpen`). Comment adds/removes bump the
+  reel's local `commentCount` via `onCountDelta` rather than refetching the feed
+  (which would reset scroll position).
+- **My Videos:** `FlatList` `numColumns` = `useResponsive().gridColumns` (1 → 4).
+- **Form / content screens** (auth, Submit, Edit/Profile): the root `screen` style
+  gets `maxWidth` + `alignSelf: 'center'` so content stays a readable column.
+
+## Paid registration + referrals
+
+DB: `supabase/migrations/0006_registration_payments_referrals.sql` +
+`0010_manual_upi_payments.sql` (0007/0008/0009 also apply in between — run in
+order). `profiles.payment_status` (`unpaid|submitted|approved|rejected`) gates
+`videos` inserts via the `check_can_post` trigger; `MainStackNavigator` wraps
+the tabs so `PaymentScreen` can be pushed over browse-only tabs. `SubmitScreen`
+shows `<PaymentGate>` until `payment_status === 'approved'`.
+
+Payment is **manual UPI**, not a payment gateway: `PaymentScreen` renders a
+`upi://pay?pa=<upi_id>&pn=<payee>&am=<fee>&cu=INR` QR (`PaymentQrCode.tsx`,
+generated client-side with the `qrcode` package — a data URI, not a stored
+image, so it always reflects the live `app_settings.upi_id`/`upi_payee_name`)
+plus the UPI ID as copyable text. The user pays with any UPI app, then enters
+their UTR/transaction reference and attaches a screenshot (`expo-image-picker`
+shim); submitting uploads the screenshot to the private `payment-proofs`
+storage bucket (`<user_id>/<timestamp>.jpg`) and calls
+`submit_registration_payment(p_upi_reference, p_screenshot_path)`, which
+requires both and flips the row + profile to `submitted`. An admin reviews it
+on the admin **Payments** page (screenshot shown via a signed URL) and calls
+`approve_registration_payment` / `reject_registration_payment`; approval
+credits the referrer `app_settings.referral_bonus_inr` once per payment.
+`useRegistrationPayment` polls while `submitted`. There is no automatic
+approval path — a payment is only ever approved by an admin looking at the
+UTR and screenshot. (An earlier iteration used Razorpay Checkout for
+automatic verification; 0010 reverted it because the product now wants manual
+UTR + screenshot review instead.) Referral code entered at sign-up
+(`options.data.referral_code`); balance shown on `ProfileScreen`. The Profile card
+shares an invite link `<origin>/?ref=CODE`; `src/lib/referral.ts` lifts `?ref=` on
+app start (`App.tsx`) into `sessionStorage`, `AuthNavigator` then opens on `SignUp`
+with the code pre-filled.
+
+## Referral wallet + withdrawals
+
+DB: `supabase/migrations/0008_referral_withdrawals.sql`. `app_settings` gains
+`min_referral_withdrawal_inr` (default ₹150, editable from admin **Settings**).
+`ReferralWalletScreen` (ProfileStack, linked from the Profile referral card)
+shows the balance, a withdraw form (amount + UPI ID), and a merged transaction
+list of `referral_earnings` (credits) and `referral_withdrawals` (debits) —
+`useReferralWallet` hook. Withdrawing calls the `request_referral_withdrawal`
+RPC, which is **auto-approved**: it locks the profile row, checks the amount is
+≥ the minimum and ≤ the balance, debits `referral_balance_inr`, and writes a
+`paid` `referral_withdrawals` row in one transaction. Admins see every
+withdrawal (global + per user, with per-user earned/paid/balance rollups) on the
+admin **Referrals** page and can `set_referral_withdrawal_status` to
+`failed`/`reversed` (refunds the balance) or back to `paid` (re-debits).

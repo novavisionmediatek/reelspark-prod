@@ -1,0 +1,70 @@
+/*
+ * Font faces named to match src/theme/tokens.ts (e.g. `Unbounded_700Bold`).
+ * Files ship with the @fontsource/* packages; Vite fingerprints and copies them.
+ */
+
+@font-face {
+  font-family: 'Unbounded_500Medium';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('@fontsource/unbounded/files/unbounded-latin-500-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Unbounded_600SemiBold';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('@fontsource/unbounded/files/unbounded-latin-600-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Unbounded_700Bold';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('@fontsource/unbounded/files/unbounded-latin-700-normal.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Inter_400Regular';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('@fontsource/inter/files/inter-latin-400-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Inter_500Medium';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('@fontsource/inter/files/inter-latin-500-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Inter_600SemiBold';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('@fontsource/inter/files/inter-latin-600-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Inter_700Bold';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('@fontsource/inter/files/inter-latin-700-normal.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'JetBrainsMono_500Medium';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('@fontsource/jetbrains-mono/files/jetbrains-mono-latin-500-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'JetBrainsMono_600SemiBold';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('@fontsource/jetbrains-mono/files/jetbrains-mono-latin-600-normal.woff2') format('woff2');
+}

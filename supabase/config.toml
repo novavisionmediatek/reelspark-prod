@@ -1,0 +1,2 @@
+# Minimal Supabase CLI config. `project_id` is the project ref the CLI links to.
+project_id = "gjaetfqanqnpwajxryrt"
