@@ -119,6 +119,48 @@ function FeedItem({ video, isActive, itemHeight, desktop, soundOn, onToggleSound
     setCommentCount((c) => Math.max(0, c + delta));
   }, []);
 
+  // Share the reel's real YouTube/Instagram link (the app has no per-video route
+  // to deep-link into). Native share sheet where the browser has one, otherwise
+  // copy the link and flash a confirmation on the button.
+  const [shareCopied, setShareCopied] = useState(false);
+  const shareVideo = useCallback(async () => {
+    const url = video.canonical_url ?? video.original_url;
+    if (!url) return;
+    const title = video.title ?? 'Check out this reel on ReelSpark';
+    try {
+      if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+        await navigator.share({ title, text: title, url });
+        return;
+      }
+    } catch (e) {
+      // Dismissing the share sheet is not a failure — don't fall through to copy.
+      if (e instanceof Error && e.name === 'AbortError') return;
+    }
+    let copied = false;
+    try {
+      await navigator.clipboard.writeText(url);
+      copied = true;
+    } catch {
+      // Clipboard API unavailable (e.g. insecure origin) — legacy fallback.
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = url;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        copied = document.execCommand('copy');
+        document.body.removeChild(ta);
+      } catch {
+        /* nothing more we can do */
+      }
+    }
+    if (copied) {
+      setShareCopied(true);
+      setTimeout(() => setShareCopied(false), 1500);
+    }
+  }, [video.canonical_url, video.original_url, video.title]);
+
   const countView = useCallback(() => {
     if (countedView.current) return;
     countedView.current = true;
@@ -288,9 +330,12 @@ function FeedItem({ video, isActive, itemHeight, desktop, soundOn, onToggleSound
           </Pressable>
           {commentCount > 0 ? <Text style={styles.railActionLabel}>{commentCount}</Text> : null}
         </View>
-        <Pressable style={styles.railBtn} accessibilityLabel="Share video">
-          <Feather name="share-2" size={18} color="#fff" />
-        </Pressable>
+        <View style={styles.railAction}>
+          <Pressable style={styles.railBtn} onPress={shareVideo} accessibilityLabel="Share video">
+            <Feather name={shareCopied ? 'check-circle' : 'share-2'} size={18} color={shareCopied ? colors.pink : '#fff'} />
+          </Pressable>
+          {shareCopied ? <Text style={styles.railActionLabel}>Copied</Text> : null}
+        </View>
         {/* YouTube only — a reel starts muted on tap (browsers block
             autoplay-with-sound with no prior gesture); this turns sound on for
             the current and all future reels. Instagram's own iframe audio
