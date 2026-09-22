@@ -334,9 +334,12 @@ function FeedItem({ video, isActive, itemHeight, desktop, soundOn, onToggleSound
           </Pressable>
           {commentCount > 0 ? <Text style={styles.railActionLabel}>{commentCount}</Text> : null}
         </View>
-        <Pressable style={styles.railBtn} onPress={shareVideo} accessibilityLabel="Share video">
-          <Feather name={shared ? 'check' : 'share-2'} size={18} color={shared ? colors.purple : '#fff'} />
-        </Pressable>
+        <View style={styles.railAction}>
+          <Pressable style={styles.railBtn} onPress={shareVideo} accessibilityLabel="Share video">
+            <Feather name={shared ? 'check' : 'share-2'} size={18} color={shared ? colors.purple : '#fff'} />
+          </Pressable>
+          {shared ? <Text style={styles.railActionLabel}>Copied</Text> : null}
+        </View>
         {/* YouTube only — a reel starts muted on tap (browsers block
             autoplay-with-sound with no prior gesture); this turns sound on for
             the current and all future reels. Instagram's own iframe audio
