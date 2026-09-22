@@ -60,16 +60,20 @@ const WATCH_THRESHOLD_SECONDS = 30;
 // Browsers only allow autoplay-with-sound after the page has already seen a
 // user gesture; muted autoplay is unconditionally allowed everywhere. So every
 // reel mounts muted by default (`initialMuted`) via an explicit `mute()` call
-// in `onReady` before `playVideo()` — there is no real `mute` playerVar, so
-// baking it into `playerVars` (a past bug here) is silently ignored and
-// autoplay stays blocked. The app's speaker toggle then mutes/unmutes the
-// live player over postMessage instead of touching this initial value again
-// (which would mean regenerating the srcDoc and reloading the iframe).
-// The feed mounts this iframe only after the viewer taps the poster, so the
-// player still self-starts (muted) in onReady — that first frame of playback
-// is already the direct result of a user tap. What changed for the in-app
-// "view" is *when it's counted*: not here, but WATCH_THRESHOLD_SECONDS later,
-// via the "watched" post below.
+// in `onReady` — there is no real `mute` playerVar, so baking it into
+// `playerVars` (a past bug here) is silently ignored.  The app's speaker
+// toggle then mutes/unmutes the live player over postMessage instead of
+// touching this initial value again (which would mean regenerating the
+// srcDoc and reloading the iframe).
+// The feed now mounts this iframe as soon as the reel scrolls into view —
+// well before any tap — so the player only *cues* itself here (loads +
+// buffers, muted, paused) instead of autoplaying. Actual playback starts only
+// once the host posts 'play' (sent the moment the viewer taps), at which
+// point the already-warm player just resumes — the whole IFrame API load +
+// buffer chain has already happened in the background, so that first frame
+// appears far faster than building the embed from scratch on tap. What
+// changed for the in-app "view" is *when it's counted*: not here, but
+// WATCH_THRESHOLD_SECONDS later, via the "watched" post below.
 export function youtubeEmbedHtml(videoId: string, origin: string = YT_EMBED_ORIGIN, initialMuted = true) {
   const safeId = String(videoId).replace(/[^a-zA-Z0-9_-]/g, '');
   const safeOrigin = /^https?:\/\/[^"'\s]+$/.test(origin) ? origin : YT_EMBED_ORIGIN;
@@ -164,11 +168,23 @@ export function youtubeEmbedHtml(videoId: string, origin: string = YT_EMBED_ORIG
   // Live sound toggle from the host page, so switching it doesn't reload the
   // iframe (which would restart the clip). Queued if the player isn't ready yet.
   var pendingMuted = null;
+  // The player is constructed (and starts buffering) as soon as this document
+  // mounts, cued but not playing — 'play'/'pause' from the host is what
+  // actually starts/stops it, so a tap on the host's play button just resumes
+  // an already-warm player instead of this whole document having to load
+  // first. Queued the same way as mute, in case 'play' arrives before the
+  // IFrame API has finished constructing the player.
+  var pendingPlay = null;
   window.addEventListener('message', function (e) {
-    if (e.data !== 'mute' && e.data !== 'unmute') return;
-    var shouldMute = e.data === 'mute';
-    if (!player || typeof player.mute !== 'function') { pendingMuted = shouldMute; return; }
-    try { shouldMute ? player.mute() : player.unMute(); } catch (err) {}
+    if (e.data === 'mute' || e.data === 'unmute') {
+      var shouldMute = e.data === 'mute';
+      if (!player || typeof player.mute !== 'function') { pendingMuted = shouldMute; return; }
+      try { shouldMute ? player.mute() : player.unMute(); } catch (err) {}
+    } else if (e.data === 'play' || e.data === 'pause') {
+      var shouldPlay = e.data === 'play';
+      if (!player || typeof player.playVideo !== 'function') { pendingPlay = shouldPlay; return; }
+      try { shouldPlay ? player.playVideo() : player.pauseVideo(); } catch (err) {}
+    }
   });
 
   // Force subtitles/CC off. cc_load_policy alone is not enough — if the viewer's
@@ -193,7 +209,7 @@ export function youtubeEmbedHtml(videoId: string, origin: string = YT_EMBED_ORIG
       height: '100%',
       videoId: '${safeId}',
       playerVars: {
-        autoplay: 1, playsinline: 1, controls: 0, rel: 0, modestbranding: 1,
+        autoplay: 0, playsinline: 1, controls: 0, rel: 0, modestbranding: 1,
         fs: 0, disablekb: 1, iv_load_policy: 3, cc_load_policy: 0,
         origin: '${safeOrigin}',
         // Attributes the embedded play to this app in the creator's YouTube
@@ -207,13 +223,20 @@ export function youtubeEmbedHtml(videoId: string, origin: string = YT_EMBED_ORIG
           killCaptions(e.target);
           // \`mute\` isn't an actual documented playerVar — it's silently
           // ignored, so the only reliable way to mute before playback is an
-          // explicit mute()/unMute() call here, before playVideo(). Without
-          // this, unmuted autoplay gets blocked by the browser and the
-          // player just sits cued, never reaching PLAYING.
+          // explicit mute()/unMute() call here. Without this, an eventual
+          // unmuted playVideo() would get blocked by the browser's autoplay
+          // policy and the player would just sit cued, never reaching PLAYING.
           var shouldMute = pendingMuted !== null ? pendingMuted : !!(${mute});
           try { shouldMute ? e.target.mute() : e.target.unMute(); } catch (err) {}
           pendingMuted = null;
-          try { e.target.playVideo(); } catch (err) {}
+          // autoplay is off (see above) — the player loads/buffers here, cued
+          // and paused, until the host posts 'play' (on the viewer's tap). If
+          // that message already arrived before the API finished constructing
+          // the player, it was queued in pendingPlay — apply it now.
+          if (pendingPlay === true) {
+            try { e.target.playVideo(); } catch (err) {}
+          }
+          pendingPlay = null;
         },
         onApiChange: function (e) { killCaptions(e.target); },
         onStateChange: function (e) {
