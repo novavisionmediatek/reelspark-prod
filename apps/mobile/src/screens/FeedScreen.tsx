@@ -400,6 +400,14 @@ export function FeedScreen() {
   useEffect(() => {
     if (sharedVideoId && sharedVideoFetched) clearStoredSharedVideoId();
   }, [sharedVideoId, sharedVideoFetched]);
+  // Hold the feed on the loading state until the shared video has settled
+  // (found or not). Without this the normal paginated feed paints first —
+  // `useSharedVideo` resolves a beat later over the network — and by the time
+  // it's prepended, the FlatList's viewability calc has already latched
+  // `activeId` onto whatever was first in the plain feed, which is what a
+  // viewer following a share link actually sees and plays instead of the reel
+  // that was shared with them.
+  const waitingForSharedVideo = Boolean(sharedVideoId) && !sharedVideoFetched;
 
   // Shared across every reel; the choice survives a reload. Defaults to sound
   // ON: a muted play is a weaker "real view" signal to YouTube, and playback
@@ -552,7 +560,7 @@ export function FeedScreen() {
     [activeId, cardHeight, feedDesktop, soundOn, toggleSound, isFocused],
   );
 
-  if (isLoading) {
+  if (isLoading || waitingForSharedVideo) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator color={colors.pink} />
