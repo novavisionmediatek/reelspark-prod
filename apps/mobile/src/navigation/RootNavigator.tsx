@@ -35,7 +35,10 @@ export function RootNavigator() {
     );
   }
 
-  const needsProfile = session && (!profile || !profile.display_name);
+  // Phone is mandatory: existing accounts created before this requirement,
+  // and Google sign-ins (which skip SignUpScreen entirely), both land here
+  // until they fill it in.
+  const needsProfile = session && (!profile || !profile.display_name || !profile.phone);
 
   return (
     <NavigationContainer theme={navTheme}>

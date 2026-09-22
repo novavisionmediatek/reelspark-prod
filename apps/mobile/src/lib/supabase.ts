@@ -22,6 +22,11 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: false,
+    // Needed for Google OAuth: after the redirect back from Google the URL
+    // carries a `?code=...` param that supabase-js must read to finish the
+    // sign-in. It only looks for its own `code`/`access_token`/`error` params,
+    // so this doesn't clash with this app's own `?v=`/`?ref=` link handling
+    // (lib/sharedVideo.ts, lib/referral.ts), which run separately.
+    detectSessionInUrl: true,
   },
 });

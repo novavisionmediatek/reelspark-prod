@@ -1,8 +1,11 @@
+import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Button } from '../../components/Button';
+import { GoogleButton } from '../../components/GoogleButton';
+import { OrDivider } from '../../components/OrDivider';
 import { Logo } from '../../components/Logo';
 import { colors, fonts, gradient, spacing, type } from '../../theme/tokens';
 import type { AuthStackParamList } from '../../navigation/types';
@@ -10,6 +13,8 @@ import type { AuthStackParamList } from '../../navigation/types';
 type Props = NativeStackScreenProps<AuthStackParamList, 'Welcome'>;
 
 export function WelcomeScreen({ navigation }: Props) {
+  const [error, setError] = useState<string | null>(null);
+
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
       <LinearGradient
@@ -32,8 +37,11 @@ export function WelcomeScreen({ navigation }: Props) {
       </View>
 
       <View style={styles.actions}>
+        <GoogleButton onError={setError} />
+        <OrDivider />
         <Button label="Create account" onPress={() => navigation.navigate('SignUp')} />
         <Button label="I already have an account" variant="secondary" onPress={() => navigation.navigate('Login')} />
+        {error ? <Text style={styles.error}>{error}</Text> : null}
         <Text style={styles.legal}>By continuing you agree to our Terms &amp; Privacy Policy</Text>
       </View>
     </SafeAreaView>
@@ -59,4 +67,5 @@ const styles = StyleSheet.create({
   copy: { ...type.bodySmall, color: colors.textMuted, maxWidth: 280, lineHeight: 21 },
   actions: { gap: spacing.md, paddingBottom: spacing.lg },
   legal: { ...type.bodySmall, color: colors.textMuted, textAlign: 'center', fontSize: 11 },
+  error: { ...type.bodySmall, color: colors.coral, textAlign: 'center' },
 });
