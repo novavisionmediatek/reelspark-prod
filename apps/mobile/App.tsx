@@ -4,10 +4,13 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './src/lib/AuthProvider';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { captureReferralFromUrl } from './src/lib/referral';
+import { captureSharedVideoFromUrl } from './src/lib/sharedVideo';
 import { colors } from './src/theme/tokens';
 
 // Lift ?ref=CODE out of the invite link before anything renders.
 captureReferralFromUrl();
+// Lift ?v=VIDEO_ID out of a shared-reel link the same way.
+captureSharedVideoFromUrl();
 
 const queryClient = new QueryClient();
 

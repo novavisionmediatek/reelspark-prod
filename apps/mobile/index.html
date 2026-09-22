@@ -5,6 +5,14 @@
     <link rel="icon" href="/favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>ReelSpark</title>
+    <!-- Warm the connection YouTube embeds need before the viewer ever taps
+         play — DNS + TLS handshake and the IFrame API script are the biggest
+         chunk of the 1-2s delay between tap and first frame. -->
+    <link rel="preconnect" href="https://www.youtube.com" />
+    <link rel="preconnect" href="https://www.youtube-nocookie.com" />
+    <link rel="preconnect" href="https://i.ytimg.com" />
+    <link rel="dns-prefetch" href="https://www.youtube.com" />
+    <link rel="preload" as="script" href="https://www.youtube.com/iframe_api" />
     <style>
       html,
       body,

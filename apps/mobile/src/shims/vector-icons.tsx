@@ -94,6 +94,7 @@ const FEATHER_PATHS: Record<string, ReactNode> = {
   ),
   'chevron-right': <polyline points="9 18 15 12 9 6" />,
   'chevron-down': <polyline points="6 9 12 15 18 9" />,
+  'chevron-up': <polyline points="18 15 12 9 6 15" />,
   'arrow-left': (
     <>
       <line x1="19" y1="12" x2="5" y2="12" />
@@ -214,6 +215,7 @@ const featherGlyphs = {
   'share-2': 0,
   'chevron-right': 0,
   'chevron-down': 0,
+  'chevron-up': 0,
   'arrow-left': 0,
   mail: 0,
   bell: 0,

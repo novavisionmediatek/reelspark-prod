@@ -1,8 +1,44 @@
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import type { Video } from '../types/database';
 
 const PAGE_SIZE = 10;
+
+// Resolves a `?v=VIDEO_ID` share link (see lib/sharedVideo.ts) to the actual
+// video row, so FeedScreen can prepend it ahead of the normal paginated feed
+// and land the viewer on the exact reel that was shared with them, not
+// whatever's currently first. `videoId` is null once there's nothing to
+// resolve (no id was in the link, or it's already been consumed).
+export function useSharedVideo(videoId: string | null) {
+  return useQuery({
+    queryKey: ['sharedVideo', videoId],
+    enabled: !!videoId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('videos')
+        .select('*')
+        .eq('id', videoId as string)
+        .eq('status', 'approved')
+        .eq('is_deleted', false)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) return null;
+      const video = data as Video;
+
+      const { data: userData } = await supabase.auth.getUser();
+      const uid = userData.user?.id;
+      if (uid) {
+        const { count } = await supabase
+          .from('video_likes')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', uid)
+          .eq('video_id', video.id);
+        video.liked_by_me = (count ?? 0) > 0;
+      }
+      return video;
+    },
+  });
+}
 
 export function useFeed() {
   return useInfiniteQuery({

@@ -20,7 +20,8 @@ import { VideoPlayer } from '../components/VideoPlayer';
 import { colors, fonts, radius, spacing } from '../theme/tokens';
 import { useResponsive } from '../theme/responsive';
 import { bestYtThumbnail, ytThumbnailFallback } from '../lib/ytThumb';
-import { useFeed, incrementViewCount, toggleVideoLike } from '../hooks/useFeed';
+import { useFeed, useSharedVideo, incrementViewCount, toggleVideoLike } from '../hooks/useFeed';
+import { getStoredSharedVideoId, clearStoredSharedVideoId, sharedVideoLink } from '../lib/sharedVideo';
 import type { Video } from '../types/database';
 
 // Deterministic-looking placeholder gradient per video, shown behind the player
@@ -119,6 +120,35 @@ function FeedItem({ video, isActive, itemHeight, desktop, soundOn, onToggleSound
     setCommentCount((c) => Math.max(0, c + delta));
   }, []);
 
+  // Share a ReelSpark deep link (`?v=VIDEO_ID`, see lib/sharedVideo.ts) that
+  // opens straight into this exact reel — not the creator's original
+  // YouTube/Instagram URL. Mirrors the referral share pattern: native share
+  // sheet where available, clipboard otherwise.
+  const [shared, setShared] = useState(false);
+  const shareVideo = useCallback(async () => {
+    const link = sharedVideoLink(video.id);
+    const shareData = {
+      title: video.author_name ? `${video.author_name} on ReelSpark` : 'ReelSpark',
+      text: video.title ?? 'Check out this reel on ReelSpark',
+      url: link,
+    };
+    try {
+      if (typeof navigator !== 'undefined' && navigator.share) {
+        await navigator.share(shareData);
+        return;
+      }
+    } catch {
+      /* user dismissed the share sheet — fall through to copy */
+    }
+    try {
+      await navigator.clipboard.writeText(link);
+      setShared(true);
+      setTimeout(() => setShared(false), 1500);
+    } catch {
+      /* clipboard unavailable */
+    }
+  }, [video.id, video.author_name, video.title]);
+
   const countView = useCallback(() => {
     if (countedView.current) return;
     countedView.current = true;
@@ -170,10 +200,17 @@ function FeedItem({ video, isActive, itemHeight, desktop, soundOn, onToggleSound
   // IG's own poster + button) is mounted whenever the item is active. Either way,
   // pause the reel while the comments sheet is covering it.
   const showReel = (isInstagram ? isActive : isActive && playing) && !commentsOpen;
+  // Mounts the player as soon as the item is active — for YouTube this is
+  // *before* the viewer has tapped play: the embed loads and buffers, cued
+  // but silent/paused, underneath our poster (see `showChrome`), so the tap
+  // itself just resumes an already-warm player instead of starting that whole
+  // load chain from zero. Instagram has no separate cue/play control, so for
+  // it this is the same gate as `showReel` — unchanged from before.
+  const activeReel = isActive && !commentsOpen;
   // Whether OUR chrome (poster/dim/"For You") should mask the player. For
   // Instagram this is just "not active" (no app poster ever, per above). For
-  // YouTube it stays masked through the mount+load window, only clearing once
-  // `started` confirms real video frames are on screen.
+  // YouTube it stays masked through the buffer/tap/load window, only clearing
+  // once `started` confirms real video frames are on screen.
   const showChrome = isInstagram ? !showReel : !started;
 
   const initials = (video.author_name ?? '??').slice(0, 2).toUpperCase();
@@ -187,11 +224,13 @@ function FeedItem({ video, isActive, itemHeight, desktop, soundOn, onToggleSound
         style={StyleSheet.absoluteFill}
       />
 
-      {/* The actual player. Mounts (and starts loading/autoplaying) the instant
-          the item is active, underneath our poster below — see `showChrome`. */}
+      {/* The actual player. Mounts the instant the item is active, underneath
+          our poster below — see `showChrome`. YouTube only starts *playing*
+          once `showReel` (the viewer's tap) flips true; see `activeReel`. */}
       <VideoPlayer
         platform={video.platform}
         videoId={video.platform_video_id}
+        active={activeReel}
         playing={showReel}
         muted={!soundOn}
         onEnded={handleEnded}
@@ -253,14 +292,21 @@ function FeedItem({ video, isActive, itemHeight, desktop, soundOn, onToggleSound
           same gesture; the player's own tap layer takes over pause/resume once
           it's running (`started`), at which point this chrome clears.
           Instagram: the reel is already mounted, so the single tap lands on
-          IG's own control — no app play button. */}
+          IG's own control — no app play button.
+          The glyph itself disappears the instant it's tapped (rather than
+          sitting there unchanged, or swapping to a spinner) — the tap target
+          stays live over the poster for that ~1-2s load window so a second tap
+          still cancels back to the play icon, it's just not showing any "loading"
+          chrome of its own. */}
       {showChrome && !isInstagram ? (
         <Pressable style={StyleSheet.absoluteFill} onPress={togglePlay} accessibilityLabel="Play video">
-          <View style={styles.playButtonWrap} pointerEvents="none">
-            <View style={styles.playButton}>
-              <Feather name="play" size={30} color="#fff" fill="#fff" style={{ marginLeft: 4 }} />
+          {!playing ? (
+            <View style={styles.playButtonWrap} pointerEvents="none">
+              <View style={styles.playButton}>
+                <Feather name="play" size={30} color="#fff" fill="#fff" style={{ marginLeft: 4 }} />
+              </View>
             </View>
-          </View>
+          ) : null}
         </Pressable>
       ) : null}
 
@@ -288,8 +334,8 @@ function FeedItem({ video, isActive, itemHeight, desktop, soundOn, onToggleSound
           </Pressable>
           {commentCount > 0 ? <Text style={styles.railActionLabel}>{commentCount}</Text> : null}
         </View>
-        <Pressable style={styles.railBtn} accessibilityLabel="Share video">
-          <Feather name="share-2" size={18} color="#fff" />
+        <Pressable style={styles.railBtn} onPress={shareVideo} accessibilityLabel="Share video">
+          <Feather name={shared ? 'check' : 'share-2'} size={18} color={shared ? colors.purple : '#fff'} />
         </Pressable>
         {/* YouTube only — a reel starts muted on tap (browsers block
             autoplay-with-sound with no prior gesture); this turns sound on for
@@ -340,6 +386,18 @@ export function FeedScreen() {
   const { feedDesktop } = useResponsive();
   const isFocused = useIsFocused();
 
+  // A `?v=VIDEO_ID` share link (captured into sessionStorage at app start —
+  // see lib/sharedVideo.ts) resolves here and gets prepended ahead of the
+  // normal paginated feed below, so a shared reel opens directly into that
+  // exact video instead of whatever's currently first. Read once per mount;
+  // cleared once resolved (found or not) so it doesn't keep re-applying on
+  // every later visit to this screen in the same session.
+  const [sharedVideoId] = useState(() => getStoredSharedVideoId() || null);
+  const { data: sharedVideo, isFetched: sharedVideoFetched } = useSharedVideo(sharedVideoId);
+  useEffect(() => {
+    if (sharedVideoId && sharedVideoFetched) clearStoredSharedVideoId();
+  }, [sharedVideoId, sharedVideoFetched]);
+
   // Shared across every reel; the choice survives a reload. Defaults to sound
   // ON: a muted play is a weaker "real view" signal to YouTube, and playback
   // here always follows an explicit tap-to-play so autoplay-with-sound is
@@ -383,8 +441,16 @@ export function FeedScreen() {
   const cardWidth = feedDesktop ? Math.min(Math.round(maxCardHeight * 9 / 16), 460) : undefined;
   const cardHeight = feedDesktop && cardWidth ? Math.round(cardWidth * 16 / 9) : areaHeight;
 
-  const videos = data?.pages.flat() ?? [];
+  const feedVideos = data?.pages.flat() ?? [];
+  const videos =
+    sharedVideo && !feedVideos.some((v) => v.id === sharedVideo.id) ? [sharedVideo, ...feedVideos] : feedVideos;
   const videoCount = videos.length;
+  // Read from goBy without making it depend on (and get recreated by) the
+  // `videos` array, which is a fresh reference every render.
+  const videosRef = useRef<Video[]>(videos);
+  useEffect(() => {
+    videosRef.current = videos;
+  }, [videos]);
 
   const [activeId, setActiveId] = useState<string | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -404,12 +470,19 @@ export function FeedScreen() {
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 80 });
 
   // Desktop navigation: the playing <iframe> swallows wheel + key events, so we
-  // drive the list by index instead of relying on native paging.
+  // drive the list by index instead of relying on native paging. Set the active
+  // index/id ourselves rather than waiting on `onViewableItemsChanged` — that
+  // callback doesn't reliably fire for a programmatic `scrollToIndex` on web,
+  // which left `activeIndex` frozen at 0 (permanently disabling the "previous"
+  // chevron) even as the visible reel moved on.
   const goBy = useCallback(
     (delta: number) => {
       const target = Math.max(0, Math.min(activeIndexRef.current + delta, videoCount - 1));
       if (target === activeIndexRef.current) return;
       listRef.current?.scrollToIndex({ index: target, animated: true });
+      setActiveIndex(target);
+      const targetVideo = videosRef.current[target];
+      if (targetVideo) setActiveId(targetVideo.id);
       if (target >= videoCount - 2 && hasNextPage && !isFetchingNextPage) fetchNextPage();
     },
     [videoCount, hasNextPage, isFetchingNextPage, fetchNextPage],
