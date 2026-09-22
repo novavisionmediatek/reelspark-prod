@@ -5,19 +5,26 @@ import { Button } from '../../components/Button';
 import { TextField } from '../../components/TextField';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../lib/AuthProvider';
+import { isValidPhone } from '../../lib/phone';
 import { colors, spacing, type } from '../../theme/tokens';
 
 export function CompleteProfileScreen() {
-  const { refreshProfile } = useAuth();
-  const [displayName, setDisplayName] = useState('');
-  const [youtubeHandle, setYoutubeHandle] = useState('');
-  const [instagramHandle, setInstagramHandle] = useState('');
+  const { profile, refreshProfile } = useAuth();
+  const [displayName, setDisplayName] = useState(() => profile?.display_name ?? '');
+  const [phone, setPhone] = useState(() => profile?.phone ?? '');
+  const [youtubeHandle, setYoutubeHandle] = useState(() => profile?.youtube_handle ?? '');
+  const [instagramHandle, setInstagramHandle] = useState(() => profile?.instagram_handle ?? '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleContinue() {
     if (!displayName.trim()) {
       setError('Add a display name to continue.');
+      return;
+    }
+    const trimmedPhone = phone.trim();
+    if (!isValidPhone(trimmedPhone)) {
+      setError('Enter a valid phone number to continue.');
       return;
     }
     setError(null);
@@ -36,6 +43,7 @@ export function CompleteProfileScreen() {
       .from('profiles')
       .update({
         display_name: displayName.trim(),
+        phone: trimmedPhone,
         youtube_handle: youtubeHandle.trim() || null,
         instagram_handle: instagramHandle.trim() || null,
       })
@@ -66,6 +74,9 @@ export function CompleteProfileScreen() {
       <View style={styles.form}>
         <Text style={styles.label}>Display name</Text>
         <TextField value={displayName} onChangeText={setDisplayName} placeholder="Marcus Reyes" />
+
+        <Text style={styles.label}>Phone number</Text>
+        <TextField value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholder="+1 555 000 0000" />
 
         <Text style={styles.label}>YouTube handle (optional)</Text>
         <TextField value={youtubeHandle} onChangeText={setYoutubeHandle} autoCapitalize="none" placeholder="@marcusfilms" />

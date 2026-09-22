@@ -3,6 +3,8 @@ import { KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-na
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Button } from '../../components/Button';
+import { GoogleButton } from '../../components/GoogleButton';
+import { OrDivider } from '../../components/OrDivider';
 import { TextField } from '../../components/TextField';
 import { supabase } from '../../lib/supabase';
 import { clearStoredReferral, getStoredReferral } from '../../lib/referral';
@@ -50,6 +52,9 @@ export function SignUpScreen({ navigation }: Props) {
         </View>
 
         <View style={styles.form}>
+          <GoogleButton onError={setError} />
+          <OrDivider />
+
           <Text style={styles.label}>Email</Text>
           <TextField value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" placeholder="you@example.com" />
 
