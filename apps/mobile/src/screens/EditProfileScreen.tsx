@@ -9,6 +9,7 @@ import { Button } from '../components/Button';
 import { TextField } from '../components/TextField';
 import { useAuth } from '../lib/AuthProvider';
 import { useUpdateProfile, useUploadAvatar } from '../hooks/useUpdateProfile';
+import { isValidPhone } from '../lib/phone';
 import { colors, fonts, spacing, type } from '../theme/tokens';
 import type { ProfileStackParamList } from '../navigation/types';
 
@@ -26,6 +27,7 @@ export function EditProfileScreen({ navigation }: Props) {
   const [instagramHandle, setInstagramHandle] = useState(profile?.instagram_handle ?? '');
 
   const initials = (displayName || '??').slice(0, 2).toUpperCase();
+  const [phoneError, setPhoneError] = useState<string | null>(null);
 
   async function handlePickAvatar() {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -43,11 +45,17 @@ export function EditProfileScreen({ navigation }: Props) {
   }
 
   function handleSave() {
+    const trimmedPhone = phone.trim();
+    if (!isValidPhone(trimmedPhone)) {
+      setPhoneError('Enter a valid phone number.');
+      return;
+    }
+    setPhoneError(null);
     updateProfile.mutate(
       {
         display_name: displayName.trim(),
         bio: bio.trim() || null,
-        phone: phone.trim() || null,
+        phone: trimmedPhone,
         youtube_handle: youtubeHandle.trim() || null,
         instagram_handle: instagramHandle.trim() || null,
       },
@@ -84,8 +92,9 @@ export function EditProfileScreen({ navigation }: Props) {
         <Text style={styles.label}>Bio</Text>
         <TextField value={bio} onChangeText={setBio} placeholder="Editor & motion designer." multiline />
 
-        <Text style={styles.label}>Phone (optional)</Text>
+        <Text style={styles.label}>Phone number</Text>
         <TextField value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholder="+1 555 000 0000" />
+        {phoneError ? <Text style={styles.errorText}>{phoneError}</Text> : null}
 
         <Text style={styles.label}>YouTube handle</Text>
         <TextField value={youtubeHandle} onChangeText={setYoutubeHandle} autoCapitalize="none" placeholder="@yourchannel" />
