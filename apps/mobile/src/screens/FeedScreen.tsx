@@ -14,6 +14,7 @@ import { useIsFocused } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { Avatar } from '../components/Avatar';
+import { Button } from '../components/Button';
 import { CommentsSheet } from '../components/CommentsSheet';
 import { PlatformChip } from '../components/PlatformChip';
 import { VideoPlayer } from '../components/VideoPlayer';
@@ -408,6 +409,13 @@ export function FeedScreen() {
   // viewer following a share link actually sees and plays instead of the reel
   // that was shared with them.
   const waitingForSharedVideo = Boolean(sharedVideoId) && !sharedVideoFetched;
+  // The lookup settled but came back empty — the link's video was deleted,
+  // never got approved, or the id is bad. Previously this fell straight through
+  // to the normal feed with zero indication anything was wrong, which looks
+  // identical to "the share link doesn't work" even though the app is fine.
+  // Surface it explicitly instead of silently landing on the generic feed.
+  const sharedVideoMissing = Boolean(sharedVideoId) && sharedVideoFetched && !sharedVideo;
+  const [dismissedSharedVideoMissing, setDismissedSharedVideoMissing] = useState(false);
 
   // Shared across every reel; the choice survives a reload. Defaults to sound
   // ON: a muted play is a weaker "real view" signal to YouTube, and playback
@@ -453,8 +461,13 @@ export function FeedScreen() {
   const cardHeight = feedDesktop && cardWidth ? Math.round(cardWidth * 16 / 9) : areaHeight;
 
   const feedVideos = data?.pages.flat() ?? [];
-  const videos =
-    sharedVideo && !feedVideos.some((v) => v.id === sharedVideo.id) ? [sharedVideo, ...feedVideos] : feedVideos;
+  // Always pin the shared video to index 0 — not just when it's absent from
+  // the normal feed. A recently-approved shared video is often already inside
+  // the first paginated page in its normal chronological spot (not position 0),
+  // so the old "only prepend if missing" check would leave it in place and the
+  // list would open on whatever's naturally first instead of the reel that was
+  // actually shared. De-dupe the natural copy so it isn't shown twice.
+  const videos = sharedVideo ? [sharedVideo, ...feedVideos.filter((v) => v.id !== sharedVideo.id)] : feedVideos;
   const videoCount = videos.length;
   // Read from goBy without making it depend on (and get recreated by) the
   // `videos` array, which is a fresh reference every render.
@@ -564,6 +577,16 @@ export function FeedScreen() {
     return (
       <View style={styles.centered}>
         <ActivityIndicator color={colors.pink} />
+      </View>
+    );
+  }
+
+  if (sharedVideoMissing && !dismissedSharedVideoMissing) {
+    return (
+      <View style={styles.centered}>
+        <Text style={styles.emptyTitle}>This video isn't available</Text>
+        <Text style={styles.emptyText}>It may have been removed, or the link is no longer valid.</Text>
+        <Button label="Go to feed" variant="secondary" onPress={() => setDismissedSharedVideoMissing(true)} />
       </View>
     );
   }
