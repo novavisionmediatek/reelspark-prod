@@ -15,6 +15,16 @@ import {
 export interface VideoPlayerProps {
   platform: 'youtube' | 'instagram';
   videoId: string;
+  // Whether the player should be mounted at all (the reel is scrolled into
+  // view). YouTube mounts cued-but-paused as soon as this is true — well
+  // before the viewer taps play — so the IFrame API script and the clip's
+  // initial buffer are already loaded/warm by the time `playing` flips true,
+  // instead of starting that whole chain at tap time. Instagram has no
+  // separate cue/play control (cross-origin), so for it this is the only
+  // gate — it plays as soon as it's mounted, same as before.
+  active: boolean;
+  // YouTube only: whether playback should actually be running. Toggling this
+  // on an already-`active` (mounted, cued) player just resumes it — no reload.
   playing: boolean;
   // YouTube only: whether the reel should be silent. Browsers block
   // autoplay-with-sound unless the page already saw a user gesture, so every
@@ -39,12 +49,12 @@ export interface VideoPlayerProps {
 // srcDoc (origin = this page's origin); Instagram loads its /embed/ page directly
 // (a nested srcDoc frame, or a CSS-transformed iframe on mobile, stopped IG
 // playing on tap) and hides IG's chrome with plain layout offsets.
-export function VideoPlayer({ platform, videoId, playing, muted = true, onEnded, onStarted, onWatched, style }: VideoPlayerProps) {
+export function VideoPlayer({ platform, videoId, active, playing, muted = true, onEnded, onStarted, onWatched, style }: VideoPlayerProps) {
   const isYouTube = platform === 'youtube';
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   useEffect(() => {
-    if (!playing || !isYouTube) return;
+    if (!active || !isYouTube) return;
     function onMessage(e: MessageEvent) {
       if (e.data === 'ended') onEnded?.();
       else if (e.data === 'playing') onStarted?.();
@@ -52,25 +62,35 @@ export function VideoPlayer({ platform, videoId, playing, muted = true, onEnded,
     }
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
-  }, [playing, isYouTube, onEnded, onStarted, onWatched]);
+  }, [active, isYouTube, onEnded, onStarted, onWatched]);
 
   // Only the initial mute state is baked into the iframe's srcDoc (below) —
   // reacting to `muted` here and posting to the live player instead means
   // toggling sound doesn't reload (and restart) the clip.
   useEffect(() => {
-    if (!playing || !isYouTube) return;
+    if (!active || !isYouTube) return;
     iframeRef.current?.contentWindow?.postMessage(muted ? 'mute' : 'unmute', '*');
-  }, [playing, isYouTube, muted]);
+  }, [active, isYouTube, muted]);
 
-  // Frozen at the moment playback starts (each scroll-in is a fresh iframe,
-  // since `playing` going false unmounts it below) so later `muted` changes
-  // flow through the postMessage effect above instead of regenerating srcDoc.
+  // The player mounts cued-but-paused as soon as it's `active` (buffering in
+  // the background); this is what actually starts/stops it once the viewer
+  // taps play — a message to an already-warm player instead of building the
+  // whole embed from scratch at tap time.
+  useEffect(() => {
+    if (!active || !isYouTube) return;
+    iframeRef.current?.contentWindow?.postMessage(playing ? 'play' : 'pause', '*');
+  }, [active, isYouTube, playing]);
+
+  // Frozen at the moment the reel becomes active (each scroll-in is a fresh
+  // iframe, since `active` going false unmounts it below) so later `muted`
+  // changes flow through the postMessage effect above instead of regenerating
+  // srcDoc.
   const initialMutedRef = useRef(muted);
-  const wasPlayingRef = useRef(false);
-  if (playing && !wasPlayingRef.current) initialMutedRef.current = muted;
-  wasPlayingRef.current = playing;
+  const wasActiveRef = useRef(false);
+  if (active && !wasActiveRef.current) initialMutedRef.current = muted;
+  wasActiveRef.current = active;
 
-  if (!playing) return null;
+  if (!active) return null;
 
   if (isYouTube) {
     return (
