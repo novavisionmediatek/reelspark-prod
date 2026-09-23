@@ -21,23 +21,31 @@ still use the `.web.tsx` suffix, but everything here is the web build.
 `styles.css`) that Vite copies from `publicDir` (`assets/`) to the site root, so
 they serve at `/legal/index.html`, `/legal/terms.html`, `/legal/privacy.html`,
 `/legal/refund.html`, `/legal/shipping.html`, `/legal/pricing.html`,
-`/legal/contact.html`. They exist for payment-gateway (Razorpay) merchant
-activation, which requires publicly reachable Terms, Privacy, Refund/Cancellation,
-Shipping/Delivery, Pricing and Contact pages, and are linked from
-`PaymentScreen` (`LEGAL_LINKS`).
+`/legal/contact.html`. They exist for UPI/payment-provider compliance, which
+requires publicly reachable Terms, Privacy, Refund/Cancellation,
+Shipping/Delivery, Pricing and Contact pages. Payments describe manual UPI
+collection (see below), not any payment gateway. Linked from `PaymentScreen`
+(`LEGAL_LINKS`, shown mid-payment) and from `HelpSupportScreen` (a "Legal &
+policies" section, so both paid and free users can reach them anytime).
 
-Entity: **Matrigyan Private Limited** (Pvt Ltd; GSTIN `19AAQCM7780C1ZY`, West
-Bengal; registered office JL No. 185, Balia, Salua, Kharagpur, Paschim Medinipur,
-WB 721145; directors Santosh Behara & Priya Devi) owns/operates ReelSpark at
-`https://reelspark.in`. The ₹300 annual fee is described as **GST-inclusive**.
-The pages describe the registration fee as an **annual** fee (12-month access,
-non-refundable once access is enabled, no auto-renew) and referral withdrawals as
-paid within **2 working days** — note this differs from the current DB behaviour,
-where `profiles.payment_status='approved'` never expires (payment is still
+Entity: **ReelSpark Private Limited** (Pvt Ltd, incorporated under the
+Companies Act, 2013) owns/operates ReelSpark at `https://reelspark.in`. GSTIN,
+PAN, registered office and director names are deliberately **not** shown on
+these pages yet (the previous copy carried Matrigyan Private Limited's
+registration details, which don't belong to this entity — removed rather than
+guessed). Fill them in on `terms.html`, `privacy.html`, `refund.html`,
+`shipping.html`, `pricing.html` and `contact.html` once ReelSpark Private
+Limited's own GSTIN/PAN/address/directors are confirmed — search those files
+for "registered office" / "Business details" to find every spot. The pricing
+pages no longer claim a specific GST-inclusive rate (dropped the GSTIN-backed
+claim; re-add once GST registration is confirmed). The pages describe the
+registration fee as an **annual** fee (12-month access, non-refundable once
+access is enabled, no auto-renew) and referral withdrawals as paid within
+**2 working days** — note this differs from the current DB behaviour, where
+`profiles.payment_status='approved'` never expires (payment is still
 effectively one-time in code). Support contact: `support@reelspark.in`,
-`+91 89273 49105`. Only `[CIN …]` on `contact.html` is left as an optional
-fill-in; the fee/bonus figures (₹300 / ₹50 / ₹150) are taken from `app_settings`
-defaults — keep `pricing.html` in sync if they change.
+`+91 89273 49105`. The fee/bonus figures (₹300 / ₹50 / ₹150) are taken from
+`app_settings` defaults — keep `pricing.html` in sync if they change.
 
 ## Responsive layout
 

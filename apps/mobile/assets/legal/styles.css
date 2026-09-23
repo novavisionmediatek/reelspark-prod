@@ -1,6 +1,7 @@
 /* ReelSpark — shared styles for the public legal / policy pages.
-   These pages are plain static HTML served at /legal/*.html so that Razorpay
-   (and users) can reach them without signing in. Keep them dependency-free. */
+   These pages are plain static HTML served at /legal/*.html so that anyone
+   (users, payment-provider compliance reviewers) can reach them without
+   signing in. Keep them dependency-free. */
 
 :root {
   --bg: #f6f6f9;
