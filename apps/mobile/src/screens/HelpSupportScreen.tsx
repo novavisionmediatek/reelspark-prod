@@ -9,6 +9,27 @@ import type { ProfileStackParamList } from '../navigation/types';
 type Props = NativeStackScreenProps<ProfileStackParamList, 'HelpSupport'>;
 
 const SUPPORT_EMAIL = 'support@reelspark.in';
+const SUPPORT_PHONE = '+91 89273 49105';
+const MERCHANT_NAME = 'BHAWAN PRAKASH KHATIK';
+
+// Public policy pages live as static HTML under /legal/*.html (see
+// apps/mobile/assets/legal/) and are reachable by every user, paid or free —
+// not just mid-payment on PaymentScreen.
+const LEGAL_LINKS = [
+  { label: 'Terms & Conditions', path: 'terms.html' },
+  { label: 'Privacy Policy', path: 'privacy.html' },
+  { label: 'Refund & Cancellation Policy', path: 'refund.html' },
+  { label: 'Shipping & Delivery Policy', path: 'shipping.html' },
+  { label: 'Pricing', path: 'pricing.html' },
+  { label: 'Contact Us', path: 'contact.html' },
+] as const;
+
+function openLegal(path: string) {
+  const base = typeof window !== 'undefined' ? window.location.origin : '';
+  Linking.openURL(`${base}/legal/${path}`).catch(() => {
+    /* no handler available */
+  });
+}
 
 const FAQS: { q: string; a: string }[] = [
   {
@@ -36,6 +57,12 @@ export function HelpSupportScreen({ navigation }: Props) {
     const url = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('ReelSpark support request')}`;
     Linking.openURL(url).catch(() => {
       /* no mail handler available */
+    });
+  }
+
+  function callSupport() {
+    Linking.openURL(`tel:${SUPPORT_PHONE.replace(/\s/g, '')}`).catch(() => {
+      /* no phone handler available */
     });
   }
 
@@ -75,6 +102,37 @@ export function HelpSupportScreen({ navigation }: Props) {
           </View>
           <Feather name="chevron-right" size={18} color={colors.textMuted} />
         </Pressable>
+        <Pressable style={styles.contactRow} onPress={callSupport}>
+          <Feather name="phone" size={18} color={colors.pink} />
+          <View style={styles.contactText}>
+            <Text style={styles.contactTitle}>Call support</Text>
+            <Text style={styles.contactSub}>{SUPPORT_PHONE}</Text>
+          </View>
+          <Feather name="chevron-right" size={18} color={colors.textMuted} />
+        </Pressable>
+
+        <Text style={styles.sectionLabel}>Merchant details</Text>
+        <View style={styles.contactRow}>
+          <Feather name="briefcase" size={18} color={colors.pink} />
+          <View style={styles.contactText}>
+            <Text style={styles.contactTitle}>{MERCHANT_NAME}</Text>
+            <Text style={styles.contactSub}>Registered merchant name</Text>
+          </View>
+        </View>
+
+        <Text style={styles.sectionLabel}>Legal &amp; policies</Text>
+        <View style={styles.card}>
+          {LEGAL_LINKS.map((link, i) => (
+            <Pressable
+              key={link.path}
+              style={[styles.faqItem, styles.faqQuestionRow, i > 0 && styles.faqDivider]}
+              onPress={() => openLegal(link.path)}
+            >
+              <Text style={styles.faqQuestion}>{link.label}</Text>
+              <Feather name="chevron-right" size={16} color={colors.textMuted} />
+            </Pressable>
+          ))}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
