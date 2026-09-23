@@ -10,7 +10,7 @@ type Props = NativeStackScreenProps<ProfileStackParamList, 'HelpSupport'>;
 
 const SUPPORT_EMAIL = 'support@reelspark.in';
 const SUPPORT_PHONE = '+91 89273 49105';
-const MERCHANT_NAME = 'BHAWAN PRAKASH KHATIK';
+const MERCHANT_NAME = 'Santosh Behara';
 
 // Public policy pages live as static HTML under /legal/*.html (see
 // apps/mobile/assets/legal/) and are reachable by every user, paid or free —
