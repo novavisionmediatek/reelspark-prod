@@ -1,2 +1,7 @@
 # Minimal Supabase CLI config. `project_id` is the project ref the CLI links to.
 project_id = "gjaetfqanqnpwajxryrt"
+
+# PhonePe's webhook has no Supabase auth JWT, so the gateway must not
+# require one for this function.
+[functions.phonepe-callback]
+verify_jwt = false

@@ -1,15 +1,14 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import * as ImagePicker from 'expo-image-picker';
 import { Feather } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Button } from '../components/Button';
 import { TextField } from '../components/TextField';
-import { PaymentQrCode } from '../components/PaymentQrCode';
 import { useAuth } from '../lib/AuthProvider';
 import { useAppSettings } from '../hooks/useAppSettings';
-import { useRegistrationPayment, useSubmitRegistrationPayment } from '../hooks/useRegistrationPayment';
+import { useRegistrationPayment } from '../hooks/useRegistrationPayment';
+import { useInitiatePhonePePayment, useCheckPhonePeStatus } from '../hooks/usePhonePePayment';
 import { colors, fonts, radius, spacing, type } from '../theme/tokens';
 import type { MainStackParamList } from '../navigation/types';
 
@@ -19,51 +18,44 @@ export function PaymentScreen({ navigation }: Props) {
   const { profile, refreshProfile } = useAuth();
   const { settings } = useAppSettings();
   const { data: payment, isLoading } = useRegistrationPayment();
-  const submitPayment = useSubmitRegistrationPayment();
+  const initiatePhonePe = useInitiatePhonePePayment();
 
-  const [utr, setUtr] = useState('');
-  const [screenshotUri, setScreenshotUri] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [userPhone, setUserPhone] = useState('');
+  const [phonePeProcessing, setPhonePeProcessing] = useState(false);
 
   const fee = settings.registration_fee_inr;
   const status = profile?.payment_status ?? 'unpaid';
+
+  // While a payment is 'initiated', actively ask PhonePe whether it actually
+  // went through — this is what drives approval, not just a passive wait.
+  // Doing it here (rather than only on a separate /payment-callback route)
+  // means it works no matter how the user gets back into the app after
+  // paying, without depending on a redirect URL routing correctly.
+  useCheckPhonePeStatus(payment?.status === 'initiated' ? payment.merchant_order_id : null);
 
   // Bridge the polled payment row to the profile gate.
   useEffect(() => {
     if (payment?.status === 'approved' && status !== 'approved') refreshProfile();
   }, [payment?.status, status, refreshProfile]);
 
-  async function handlePickScreenshot() {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) return;
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.8,
-    });
-    if (!result.canceled && result.assets[0]) {
-      setScreenshotUri(result.assets[0].uri);
-    }
-  }
-
-  async function copyUpiId() {
-    try {
-      await navigator.clipboard.writeText(settings.upi_id);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      /* clipboard unavailable */
-    }
-  }
-
-  async function handleSubmit() {
+  async function handlePhonePePayment() {
     setError(null);
-    if (!utr.trim() || !screenshotUri) return;
+    if (!userPhone.trim() || userPhone.length < 10) {
+      setError('Please enter a valid 10-digit phone number');
+      return;
+    }
+
     try {
-      await submitPayment.mutateAsync({ utr: utr.trim(), screenshotUri });
+      setPhonePeProcessing(true);
+      const result = await initiatePhonePe.mutateAsync({ userPhone: userPhone.trim() });
+      if (result.redirectUrl) {
+        window.location.href = result.redirectUrl;
+      }
     } catch (e) {
-      setError((e as Error)?.message ?? 'Could not submit your payment. Please try again.');
+      setError((e as Error)?.message ?? 'Could not initiate PhonePe payment. Please try again.');
+    } finally {
+      setPhonePeProcessing(false);
     }
   }
 
@@ -76,25 +68,25 @@ export function PaymentScreen({ navigation }: Props) {
             <Feather name="check-circle" size={26} color={colors.purple} />
           </View>
           <Text style={styles.cardTitle}>Registration approved</Text>
-          <Text style={styles.cardBody}>You're all set — you can now submit your Shorts and Reels.</Text>
+          <Text style={styles.cardBody}>You're all set – you can now submit your Shorts and Reels.</Text>
           <Button label="Go to Submit" onPress={() => navigation.navigate('Tabs', { screen: 'Submit' })} style={{ marginTop: spacing.lg }} />
         </View>
       </SafeAreaView>
     );
   }
 
-  // ---- submitted / pending (manual admin review) ----------------------
-  if (!isLoading && payment?.status === 'submitted') {
+  // ---- initiated / pending (waiting for PhonePe confirmation) ---------
+  if (!isLoading && payment?.status === 'initiated') {
     return (
       <SafeAreaView style={styles.screen}>
         <View style={styles.centerCard}>
           <View style={[styles.iconCircle, { backgroundColor: 'rgba(219,50,147,0.18)' }]}>
             <ActivityIndicator color={colors.magenta} />
           </View>
-          <Text style={styles.cardTitle}>Waiting for approval</Text>
+          <Text style={styles.cardTitle}>Confirming your payment</Text>
           <Text style={styles.cardBody}>
-            We're verifying your ₹{payment.amount_inr} payment (ref. {payment.upi_reference}). This page updates
-            automatically once an admin confirms it.
+            We're confirming your ₹{payment.amount_inr} PhonePe payment. This page updates automatically once it's
+            confirmed.
           </Text>
           <Button label="Back" variant="secondary" onPress={() => navigation.goBack()} style={{ marginTop: spacing.lg }} />
         </View>
@@ -102,10 +94,9 @@ export function PaymentScreen({ navigation }: Props) {
     );
   }
 
-  // ---- unpaid / rejected — show the QR + proof form -------------------
+  // ---- unpaid / rejected — show the PhonePe form -----------------------
   const rejected = payment?.status === 'rejected';
   const referred = !!profile?.referred_by;
-  const canSubmit = utr.trim().length > 0 && !!screenshotUri;
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -113,18 +104,18 @@ export function PaymentScreen({ navigation }: Props) {
         <View style={styles.header}>
           <Text style={styles.title}>Complete registration</Text>
           <Text style={styles.subtitle}>
-            A one-time ₹{fee} fee unlocks video posting. Scan the QR with any UPI app, then tell us your transaction
-            reference and attach a screenshot — an admin confirms it and posting unlocks right after.
+            A one-time ₹{fee} fee unlocks video posting. Pay with PhonePe below — registration unlocks automatically
+            once your payment is confirmed.
           </Text>
         </View>
 
         {referred ? (
           <View style={styles.referralBox}>
             <Text style={styles.referralBoxTitle}>
-              🎉 Congrats! You’ve got ₹{settings.referral_bonus_inr} on your referral
+              🎉 Congrats! You've got ₹{settings.referral_bonus_inr} on your referral
             </Text>
             <Text style={styles.referralBoxNote}>
-              You joined with a friend’s code. Complete your ₹{fee} registration below to lock it in.
+              You joined with a friend's code. Complete your ₹{fee} registration below to lock it in.
             </Text>
           </View>
         ) : null}
@@ -132,52 +123,36 @@ export function PaymentScreen({ navigation }: Props) {
         {rejected && payment ? (
           <View style={styles.rejectedBox}>
             <Text style={styles.rejectedTitle}>Previous payment was rejected</Text>
-            {payment.admin_note ? <Text style={styles.rejectedNote}>“{payment.admin_note}”</Text> : null}
+            {payment.admin_note ? <Text style={styles.rejectedNote}>"{payment.admin_note}"</Text> : null}
             <Text style={styles.rejectedNote}>You can retry the payment below.</Text>
           </View>
         ) : null}
 
-        <View style={styles.qrCard}>
-          <Text style={styles.payLabel}>Scan to pay</Text>
+        <View style={styles.phonePeForm}>
+          <Text style={styles.payLabel}>Pay with PhonePe</Text>
           <Text style={styles.amount}>₹{fee}</Text>
-          <PaymentQrCode upiId={settings.upi_id} payeeName={settings.upi_payee_name} amountInr={fee} />
-          <Pressable style={styles.upiRow} onPress={copyUpiId} hitSlop={8}>
-            <Text style={styles.upiId}>{settings.upi_id}</Text>
-            <Feather name={copied ? 'check' : 'copy'} size={14} color={copied ? colors.purple : colors.textMuted} />
-          </Pressable>
+
+          <Text style={styles.label}>Phone number</Text>
+          <TextField
+            value={userPhone}
+            onChangeText={setUserPhone}
+            placeholder="10-digit mobile number"
+            keyboardType="phone-pad"
+            maxLength={10}
+          />
+          <Button
+            label={phonePeProcessing ? 'Processing...' : 'Pay with PhonePe'}
+            onPress={handlePhonePePayment}
+            disabled={!userPhone.trim() || phonePeProcessing}
+            loading={phonePeProcessing}
+            style={{ marginTop: spacing.lg }}
+          />
         </View>
 
-        <Text style={styles.label}>Transaction reference (UTR)</Text>
-        <TextField
-          value={utr}
-          onChangeText={setUtr}
-          placeholder="e.g. 402816734521"
-          autoCapitalize="characters"
-        />
-
-        <Text style={styles.label}>Payment screenshot</Text>
-        <Pressable style={styles.screenshotPicker} onPress={handlePickScreenshot}>
-          {screenshotUri ? (
-            <Image source={{ uri: screenshotUri }} style={styles.screenshotPreview} />
-          ) : (
-            <View style={styles.screenshotPlaceholder}>
-              <Feather name="image" size={20} color={colors.textMuted} />
-              <Text style={styles.screenshotHint}>Tap to attach a screenshot</Text>
-            </View>
-          )}
-        </Pressable>
-
-        {(error || submitPayment.isError) ? (
-          <Text style={styles.error}>{error ?? (submitPayment.error as Error)?.message}</Text>
+        {(error || initiatePhonePe.isError) ? (
+          <Text style={styles.error}>{error ?? (initiatePhonePe.error as Error)?.message}</Text>
         ) : null}
 
-        <Button
-          label={submitPayment.isPending ? 'Submitting…' : 'Submit for verification'}
-          onPress={handleSubmit}
-          disabled={!canSubmit || submitPayment.isPending}
-          loading={submitPayment.isPending}
-          style={{ marginTop: spacing.lg }}
-        />
         <Button label="Cancel" variant="ghost" onPress={() => navigation.goBack()} />
 
         <View style={styles.legalRow}>
@@ -197,8 +172,7 @@ export function PaymentScreen({ navigation }: Props) {
 }
 
 // Public policy pages live as static HTML under /legal/*.html (see
-// apps/mobile/assets/legal/). Razorpay requires these to be reachable from the
-// payment context.
+// apps/mobile/assets/legal/), reachable from the PhonePe payment context.
 const LEGAL_LINKS = [
   { label: 'Terms', path: 'terms.html' },
   { label: 'Refund Policy', path: 'refund.html' },
@@ -224,24 +198,12 @@ const styles = StyleSheet.create({
   cardTitle: { ...type.h3, color: colors.text, textAlign: 'center' },
   cardBody: { ...type.bodySmall, color: colors.textMuted, textAlign: 'center', maxWidth: 320 },
 
-  qrCard: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.xl,
-    padding: spacing.xl,
-    alignItems: 'center',
-    gap: spacing.md,
-    marginBottom: spacing.lg,
-  },
   payLabel: {
     ...type.label,
     color: colors.textMuted,
     textTransform: 'uppercase',
   },
-  amount: { fontFamily: fonts.monoSemibold, fontSize: 32, color: colors.text, marginTop: -spacing.xs },
-  upiRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-  upiId: { fontFamily: fonts.mono, fontSize: 13, color: colors.text },
+  amount: { fontFamily: fonts.monoSemibold, fontSize: 32, color: colors.text, marginTop: -spacing.xs, marginBottom: spacing.md },
 
   label: {
     ...type.label,
@@ -250,18 +212,6 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
     marginTop: spacing.sm,
   },
-
-  screenshotPicker: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderStyle: 'dashed',
-    borderRadius: radius.md,
-    overflow: 'hidden',
-    backgroundColor: colors.surface,
-  },
-  screenshotPlaceholder: { alignItems: 'center', justifyContent: 'center', gap: spacing.xs, paddingVertical: spacing['2xl'] },
-  screenshotHint: { ...type.bodySmall, color: colors.textMuted },
-  screenshotPreview: { width: '100%', height: 220, resizeMode: 'contain', backgroundColor: colors.background },
 
   error: { ...type.bodySmall, color: colors.coral, marginTop: spacing.sm },
 
@@ -298,4 +248,13 @@ const styles = StyleSheet.create({
   },
   referralBoxTitle: { fontFamily: fonts.bodySemibold, fontSize: 13, color: colors.text },
   referralBoxNote: { fontFamily: fonts.body, fontSize: 12, color: colors.textMuted },
+
+  phonePeForm: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.xl,
+    padding: spacing.xl,
+    marginBottom: spacing.lg,
+  },
 });
