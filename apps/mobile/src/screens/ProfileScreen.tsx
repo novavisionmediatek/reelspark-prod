@@ -40,6 +40,7 @@ function ReferralCard() {
   const code = profile?.referral_code ?? '';
   const status = profile?.payment_status ?? 'unpaid';
   const pill = PAYMENT_PILL[status] ?? PAYMENT_PILL.unpaid;
+  const canRefer = status === 'approved';
 
   const { data: friendCount } = useQuery({
     queryKey: ['referralCount', profile?.id],
@@ -55,7 +56,7 @@ function ReferralCard() {
   });
 
   async function shareInvite() {
-    if (!code) return;
+    if (!code || !canRefer) return;
     const link = referralLink(code);
     try {
       if (typeof navigator !== 'undefined' && navigator.share) {
@@ -88,13 +89,19 @@ function ReferralCard() {
       </View>
 
       <Text style={styles.referralBody}>
-        Friends who join with your code and complete registration earn you ₹{settings.referral_bonus_inr}.
+        {canRefer
+          ? `Friends who join with your code and complete registration earn you ₹${settings.referral_bonus_inr}.`
+          : 'Complete your registration payment to unlock your invite link — an unpaid account can’t refer anyone yet.'}
       </Text>
 
-      <Pressable style={styles.codeRow} onPress={shareInvite}>
-        <Text style={styles.code}>{code || '—'}</Text>
-        <Feather name={copied ? 'check-circle' : 'share-2'} size={15} color={copied ? colors.purple : colors.pink} />
-        <Text style={styles.codeHint}>{copied ? 'Link copied' : 'Tap to share invite link'}</Text>
+      <Pressable style={styles.codeRow} onPress={shareInvite} disabled={!canRefer}>
+        <Text style={[styles.code, !canRefer && styles.codeDisabled]}>{canRefer ? code || '—' : '••••••••'}</Text>
+        {canRefer && (
+          <>
+            <Feather name={copied ? 'check-circle' : 'share-2'} size={15} color={copied ? colors.purple : colors.pink} />
+            <Text style={styles.codeHint}>{copied ? 'Link copied' : 'Tap to share invite link'}</Text>
+          </>
+        )}
       </Pressable>
 
       <View style={styles.referralStatsRow}>
@@ -256,6 +263,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   code: { flex: 1, fontFamily: fonts.monoSemibold, fontSize: 15, color: colors.text, letterSpacing: 1 },
+  codeDisabled: { color: colors.textMuted },
   codeHint: { fontFamily: fonts.body, fontSize: 11, color: colors.textMuted },
   referralStatsRow: { flexDirection: 'row', gap: spacing['2xl'], marginTop: spacing.sm },
   referralStatNum: { fontFamily: fonts.monoSemibold, fontSize: 18, color: colors.text },

@@ -248,3 +248,13 @@ RPC, which is **auto-approved**: it locks the profile row, checks the amount is
 withdrawal (global + per user, with per-user earned/paid/balance rollups) on the
 admin **Referrals** page and can `set_referral_withdrawal_status` to
 `failed`/`reversed` (refunds the balance) or back to `paid` (re-debits).
+
+**Referral bonus is paid in one place:** `credit_referral_bonus()`
+(`0016_referral_bonus_on_any_approval.sql`), idempotent, one bonus per referred
+user, direct referrer only. A trigger on `profiles` calls it whenever
+`payment_status` becomes `approved` (or `referred_by` is set on an approved
+user), so approving someone by editing the `profiles` table in Supabase pays the
+bonus too — before 0016 only the approval RPCs did, and table-editor approvals
+left the referrer at ₹0. `referral_earnings.payment_id` is nullable for those
+manual approvals. Audit with the `referral_wallet_summary` view (SQL editor
+only); repair cached balances with `reconcile_referral_balances()`.

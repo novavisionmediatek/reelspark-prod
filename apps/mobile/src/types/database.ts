@@ -73,7 +73,7 @@ export interface ReferralEarning {
   id: string;
   referrer_id: string;
   referred_user_id: string;
-  payment_id: string;
+  payment_id: string | null;
   amount_inr: number;
   created_at: string;
 }
