@@ -191,24 +191,44 @@ order). `profiles.payment_status` (`unpaid|submitted|approved|rejected`) gates
 the tabs so `PaymentScreen` can be pushed over browse-only tabs. `SubmitScreen`
 shows `<PaymentGate>` until `payment_status === 'approved'`.
 
-Payment is **manual UPI**, not a payment gateway: `PaymentScreen` renders a
-`upi://pay?pa=<upi_id>&pn=<payee>&am=<fee>&cu=INR` QR (`PaymentQrCode.tsx`,
-generated client-side with the `qrcode` package — a data URI, not a stored
-image, so it always reflects the live `app_settings.upi_id`/`upi_payee_name`)
-plus the UPI ID as copyable text. The user pays with any UPI app, then enters
-their UTR/transaction reference and attaches a screenshot (`expo-image-picker`
-shim); submitting uploads the screenshot to the private `payment-proofs`
-storage bucket (`<user_id>/<timestamp>.jpg`) and calls
-`submit_registration_payment(p_upi_reference, p_screenshot_path)`, which
-requires both and flips the row + profile to `submitted`. An admin reviews it
-on the admin **Payments** page (screenshot shown via a signed URL) and calls
-`approve_registration_payment` / `reject_registration_payment`; approval
-credits the referrer `app_settings.referral_bonus_inr` once per payment.
-`useRegistrationPayment` polls while `submitted`. There is no automatic
-approval path — a payment is only ever approved by an admin looking at the
-UTR and screenshot. (An earlier iteration used Razorpay Checkout for
-automatic verification; 0010 reverted it because the product now wants manual
-UTR + screenshot review instead.) Referral code entered at sign-up
+Payment is **PhonePe** (Standard Checkout v2, OAuth) — the only gateway; the
+earlier manual-UPI-QR (`PaymentQrCode.tsx`, dropped by `0013`) and Razorpay
+(`0007_razorpay_payments.sql`, reverted by `0010`) iterations are gone.
+`PaymentScreen` collects a phone number and calls `useInitiatePhonePePayment`
+(`hooks/usePhonePePayment.ts`), which invokes the `phonepe-initiate` Supabase
+Edge Function. That function — not the client — holds the PhonePe
+`client_id`/`client_secret`, re-reads `registration_fee_inr` from
+`app_settings` itself (never trusts a client-supplied amount), gets an OAuth
+token, calls PhonePe's Create Payment API, writes an `initiated`
+`registration_payments` row via the service-role-only `start_phonepe_payment`
+RPC, and returns a `redirectUrl` the client sends the browser to
+(`window.location.href` — this is a Vite/react-native-web SPA, not a native
+build, so a plain redirect works). The redirect URL is just the app's root —
+deliberately not a dedicated `/payment-callback` path — because a special
+path depends on the host's SPA rewrite rules and React Navigation's web
+`linking` config both being right, and that combination silently failed in
+practice (payment stuck at `initiated` forever, nothing ever polled PhonePe).
+Instead, `PaymentScreen` itself is what confirms the payment: whenever
+`useRegistrationPayment` shows the current row as `initiated`, the screen
+also calls `useCheckPhonePeStatus(payment.merchant_order_id)`
+(`hooks/usePhonePePayment.ts`), which polls the `phonepe-status` edge
+function every 3s. That function re-checks the order with PhonePe
+server-side and, on `COMPLETED`/`FAILED`, calls the service-role-only
+`approve_phonepe_payment`/`reject_phonepe_payment` RPCs — approval credits
+the referrer `app_settings.referral_bonus_inr` once per payment. This works
+regardless of exactly how/where the user lands back in the app after paying,
+since it only depends on the DB row (looked up by the logged-in user, not by
+a URL param). The `phonepe-callback` edge function is PhonePe's webhook
+(SHA256-authenticated, `verify_jwt = false` in `supabase/config.toml`) and is
+a second, independent path to the same RPCs. No RPC that approves/rejects a
+payment is grantable to `authenticated` —
+that was a real hole in the first PhonePe attempt (a logged-in user could
+call `verify_phonepe_payment` directly and self-approve). The admin
+**Payments** page keeps `approve_registration_payment` /
+`reject_registration_payment` (from `0006`) as a manual override for stuck
+payments, but nothing in the normal flow depends on an admin looking at
+anything. `useRegistrationPayment` polls while the row is `initiated`.
+Referral code entered at sign-up
 (`options.data.referral_code`); balance shown on `ProfileScreen`. The Profile card
 shares an invite link `<origin>/?ref=CODE`; `src/lib/referral.ts` lifts `?ref=` on
 app start (`App.tsx`) into `sessionStorage`, `AuthNavigator` then opens on `SignUp`
@@ -228,3 +248,13 @@ RPC, which is **auto-approved**: it locks the profile row, checks the amount is
 withdrawal (global + per user, with per-user earned/paid/balance rollups) on the
 admin **Referrals** page and can `set_referral_withdrawal_status` to
 `failed`/`reversed` (refunds the balance) or back to `paid` (re-debits).
+
+**Referral bonus is paid in one place:** `credit_referral_bonus()`
+(`0016_referral_bonus_on_any_approval.sql`), idempotent, one bonus per referred
+user, direct referrer only. A trigger on `profiles` calls it whenever
+`payment_status` becomes `approved` (or `referred_by` is set on an approved
+user), so approving someone by editing the `profiles` table in Supabase pays the
+bonus too — before 0016 only the approval RPCs did, and table-editor approvals
+left the referrer at ₹0. `referral_earnings.payment_id` is nullable for those
+manual approvals. Audit with the `referral_wallet_summary` view (SQL editor
+only); repair cached balances with `reconcile_referral_balances()`.
