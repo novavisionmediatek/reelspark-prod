@@ -6,14 +6,14 @@ import { Badge, Btn, DetailEmpty, Field, ListRow, ListState, WorkPage } from '..
 import type { RegistrationPayment, RegistrationPaymentStatus } from '../types/database';
 
 const FILTERS: { label: string; value: RegistrationPaymentStatus | 'all' }[] = [
-  { label: 'Submitted', value: 'submitted' },
+  { label: 'Initiated', value: 'initiated' },
   { label: 'Approved', value: 'approved' },
   { label: 'Rejected', value: 'rejected' },
   { label: 'All', value: 'all' },
 ];
 
 export function Payments() {
-  const [filter, setFilter] = useState<RegistrationPaymentStatus | 'all'>('submitted');
+  const [filter, setFilter] = useState<RegistrationPaymentStatus | 'all'>('initiated');
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedId, setSelectedId] = useState<string | null>(searchParams.get('id'));
   const queryClient = useQueryClient();
@@ -33,18 +33,6 @@ export function Payments() {
   });
 
   const selected = payments?.find((p) => p.id === selectedId) ?? null;
-
-  const { data: screenshotUrl } = useQuery({
-    queryKey: ['paymentScreenshot', selected?.screenshot_path],
-    enabled: !!selected?.screenshot_path,
-    queryFn: async () => {
-      const { data, error } = await supabase.storage
-        .from('payment-proofs')
-        .createSignedUrl(selected!.screenshot_path!, 3600);
-      if (error) throw error;
-      return data.signedUrl;
-    },
-  });
 
   const review = useMutation({
     mutationFn: async ({ id, approve, note }: { id: string; approve: boolean; note?: string }) => {
@@ -116,10 +104,16 @@ export function Payments() {
         <Field label="Amount" mono>
           ₹{selected.amount_inr}
         </Field>
-        <Field label="UTR / reference" mono>
-          {selected.upi_reference ?? '—'}
+        <Field label="Phone number" mono>
+          {selected.phone_number ?? '—'}
         </Field>
-        <Field label="Submitted" mono>
+        <Field label="Merchant order ID" mono>
+          {selected.merchant_order_id ?? '—'}
+        </Field>
+        <Field label="PhonePe order ID" mono>
+          {selected.phonepe_order_id ?? '—'}
+        </Field>
+        <Field label="Created" mono>
           {new Date(selected.created_at).toLocaleString()}
         </Field>
         {selected.reviewed_at && (
@@ -131,22 +125,11 @@ export function Payments() {
           {selected.user?.referred_by ? 'Yes — referrer earns the bonus on approval.' : 'No.'}
         </Field>
         {selected.admin_note && <Field label="Note">{selected.admin_note}</Field>}
-        {selected.screenshot_path && (
-          <Field label="Screenshot">
-            {screenshotUrl ? (
-              <a href={screenshotUrl} target="_blank" rel="noreferrer">
-                <img src={screenshotUrl} alt="Payment screenshot" className="max-w-full rounded-md border border-border mt-1" />
-              </a>
-            ) : (
-              <span className="text-text-muted">Loading…</span>
-            )}
-          </Field>
-        )}
       </div>
 
       {review.isError && <p className="text-coral text-sm mt-4">{(review.error as Error)?.message}</p>}
 
-      {selected.status === 'submitted' && (
+      {selected.status === 'initiated' && (
         <div className="flex flex-wrap gap-2 mt-5">
           <Btn variant="approve" onClick={() => review.mutate({ id: selected.id, approve: true })} disabled={review.isPending}>
             Approve
@@ -169,7 +152,7 @@ export function Payments() {
   return (
     <WorkPage
       title="Payments"
-      description="Registration payments paid via UPI — verify the UTR against your bank/UPI app and the screenshot before approving."
+      description="Registration payments paid via PhonePe — these are verified automatically; use Approve/Reject here only to manually override a stuck or disputed payment."
       list={list}
       detail={detail}
       selected={!!selected}

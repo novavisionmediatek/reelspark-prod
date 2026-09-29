@@ -59,9 +59,9 @@ export interface RegistrationPayment {
   id: string;
   user_id: string;
   amount_inr: number;
-  upi_reference: string | null;
-  screenshot_path: string | null;
-  status: 'submitted' | 'approved' | 'rejected';
+  merchant_order_id: string | null;
+  phonepe_order_id: string | null;
+  status: 'initiated' | 'approved' | 'rejected';
   reviewed_by: string | null;
   reviewed_at: string | null;
   admin_note: string | null;
@@ -73,7 +73,7 @@ export interface ReferralEarning {
   id: string;
   referrer_id: string;
   referred_user_id: string;
-  payment_id: string;
+  payment_id: string | null;
   amount_inr: number;
   created_at: string;
 }
@@ -99,7 +99,5 @@ export interface AppSettings {
   registration_fee_inr: number;
   referral_bonus_inr: number;
   min_referral_withdrawal_inr: number;
-  upi_id: string;
-  upi_payee_name: string;
   updated_at: string;
 }

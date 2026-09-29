@@ -2,7 +2,7 @@ export type Platform = 'youtube' | 'instagram';
 export type VideoStatus = 'pending' | 'approved' | 'rejected' | 'flagged';
 export type ReportStatus = 'open' | 'reviewed' | 'dismissed';
 export type PaymentStatus = 'unpaid' | 'submitted' | 'approved' | 'rejected';
-export type RegistrationPaymentStatus = 'submitted' | 'approved' | 'rejected';
+export type RegistrationPaymentStatus = 'initiated' | 'approved' | 'rejected';
 export type ReferralWithdrawalStatus = 'paid' | 'failed' | 'reversed';
 
 export interface Profile {
@@ -30,8 +30,9 @@ export interface RegistrationPayment {
   id: string;
   user_id: string;
   amount_inr: number;
-  upi_reference: string | null;
-  screenshot_path: string | null;
+  merchant_order_id: string | null;
+  phonepe_order_id: string | null;
+  phone_number: string | null;
   status: RegistrationPaymentStatus;
   reviewed_by: string | null;
   reviewed_at: string | null;
@@ -46,7 +47,7 @@ export interface ReferralEarning {
   id: string;
   referrer_id: string;
   referred_user_id: string;
-  payment_id: string;
+  payment_id: string | null;
   amount_inr: number;
   created_at: string;
 }
@@ -72,8 +73,6 @@ export interface AppSettings {
   registration_fee_inr: number;
   referral_bonus_inr: number;
   min_referral_withdrawal_inr: number;
-  upi_id: string;
-  upi_payee_name: string;
   updated_at: string;
 }
 
