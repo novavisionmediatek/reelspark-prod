@@ -31,7 +31,9 @@ export function useCheckPhonePeStatus(merchantOrderId: string | null) {
   return useQuery({
     queryKey: ['phonePeStatus', merchantOrderId],
     enabled: !!merchantOrderId && !!session?.user.id,
-    refetchInterval: (query) => (query.state.data === 'pending' ? 3000 : false),
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: 'always',
+    refetchInterval: (query) => (query.state.data === 'pending' ? 2000 : false),
     queryFn: async () => {
       if (!merchantOrderId) return null;
       return checkPhonePePaymentStatus(merchantOrderId);

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -11,6 +11,8 @@ import { detectPlatform } from '../lib/urlParsers';
 import { useSubmitVideo } from '../hooks/useSubmitVideo';
 import { useAuth } from '../lib/AuthProvider';
 import { useAppSettings } from '../hooks/useAppSettings';
+import { useRegistrationPayment } from '../hooks/useRegistrationPayment';
+import { useCheckPhonePeStatus } from '../hooks/usePhonePePayment';
 import { colors, fonts, spacing, type } from '../theme/tokens';
 import type { MainStackParamList } from '../navigation/types';
 
@@ -18,15 +20,24 @@ const EXAMPLE_URL = 'https://youtube.com/shorts/9kLmR2vTqXo';
 
 const GATE_COPY: Record<string, string> = {
   unpaid: 'Pay the one-time registration fee to unlock video posting.',
-  submitted: 'Your payment is in review — an admin will approve it shortly.',
+  submitted: 'Checking your payment — this unlocks automatically once it is confirmed.',
   rejected: 'Your last payment was rejected. Open registration to resubmit.',
 };
 
 function PaymentGate() {
   const navigation = useNavigation<NativeStackNavigationProp<MainStackParamList>>();
-  const { profile } = useAuth();
+  const { profile, refreshProfile } = useAuth();
   const { settings } = useAppSettings();
   const status = profile?.payment_status ?? 'unpaid';
+  const { data: payment } = useRegistrationPayment();
+
+  // Ask PhonePe right away (and keep polling) instead of waiting for the user
+  // to open the Payment screen — approval then shows up on this tab instantly.
+  const { data: liveStatus } = useCheckPhonePeStatus(payment?.status === 'initiated' ? payment.merchant_order_id : null);
+
+  useEffect(() => {
+    if (liveStatus === 'approved' || liveStatus === 'rejected' || payment?.status === 'approved') refreshProfile();
+  }, [liveStatus, payment?.status, refreshProfile]);
 
   return (
     <SafeAreaView style={styles.screen}>
