@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -17,7 +17,7 @@ type Props = NativeStackScreenProps<MainStackParamList, 'Payment'>;
 export function PaymentScreen({ navigation }: Props) {
   const { profile, refreshProfile } = useAuth();
   const { settings } = useAppSettings();
-  const { data: payment, isLoading } = useRegistrationPayment();
+  const { data: payment } = useRegistrationPayment();
   const initiatePhonePe = useInitiatePhonePePayment();
 
   const [error, setError] = useState<string | null>(null);
@@ -75,26 +75,7 @@ export function PaymentScreen({ navigation }: Props) {
     );
   }
 
-  // ---- initiated / pending (waiting for PhonePe confirmation) ---------
-  if (!isLoading && payment?.status === 'initiated') {
-    return (
-      <SafeAreaView style={styles.screen}>
-        <View style={styles.centerCard}>
-          <View style={[styles.iconCircle, { backgroundColor: 'rgba(219,50,147,0.18)' }]}>
-            <ActivityIndicator color={colors.magenta} />
-          </View>
-          <Text style={styles.cardTitle}>Confirming your payment</Text>
-          <Text style={styles.cardBody}>
-            We're confirming your ₹{payment.amount_inr} PhonePe payment. This page updates automatically once it's
-            confirmed.
-          </Text>
-          <Button label="Back" variant="secondary" onPress={() => navigation.goBack()} style={{ marginTop: spacing.lg }} />
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  // ---- unpaid / rejected — show the PhonePe form -----------------------
+  // ---- unpaid / initiated / rejected — show the PhonePe form ------------
   const rejected = payment?.status === 'rejected';
   const referred = !!profile?.referred_by;
 
